@@ -1,0 +1,92 @@
+TLIC Python Port - Phase 2 File Guide
+====================================
+
+This document explains what each Python file does after the Phase 2 migration and folder cleanup.
+
+Root Files
+----------
+- TLIC.py
+  - Main entry point for the app.
+  - Imports `main()` from `gui/program.py` and launches the GUI.
+
+Core Folder (`core/`)
+---------------------
+- core/__init__.py
+  - Marks `core` as a Python package.
+
+- core/tlic_models.py
+  - Shared data models/dataclasses used across the app.
+  - Includes objects like `Conductor`, `Structure`, `LineSection`, `BranchOptions`, `BranchResult`, and `ProjectData`.
+
+- core/tlic_data.py
+  - Data loading/parsing layer.
+  - Reads conductor and structure files (CSV/TXT) and returns typed model objects.
+  - Includes sample/fallback data when files are missing.
+
+- core/line_rating_engine.py
+  - Thermal/rating calculation engine (Python implementation).
+  - Computes A/B/C ratings and conductor-type behavior.
+  - Includes ACSS handling with caps A/B/C = 200/250/250 C.
+
+- core/branch_engine.py
+  - Branch-level calculation engine.
+  - Aggregates line sections and computes impedance/rating outputs used by the UI.
+
+- core/project_io.py
+  - Save/Open project support.
+  - Reads/writes project XML for branch options, line sections, and custom structures.
+
+- core/exporters.py
+  - Output script generators.
+  - Builds PSS/E-style Python export text and PowerWorld AUX export text.
+
+GUI Folder (`gui/`)
+-------------------
+- gui/__init__.py
+  - Marks `gui` as a Python package.
+
+- gui/program.py
+  - GUI bootstrap.
+  - Creates the Tk root window and loads `MainForm`.
+
+- gui/main_form.py
+  - Main application window and primary workflow hub.
+  - Handles:
+    - data-file browsing/loading
+    - conductor/static/structure selection
+    - section add/delete/clear
+    - structure plotting
+    - impedance/rating output rendering
+    - project save/open
+    - export actions (Python/AUX)
+
+- gui/line_rate_main_form.py
+  - Dedicated line-rating tab UI.
+  - Lets users run direct A/B/C rating calculations for selected conductor and conditions.
+
+- gui/structure_builder.py
+  - Structure editing UI and dialog.
+  - Supports editing coordinates, static wire toggles, reset, save, and live plotting.
+
+- gui/tline_variable_sweeper.py
+  - Variable sweeper tab.
+  - Provides sweep controls and plotting for thermal model variable combinations.
+
+- gui/about_box.py
+  - About dialog content for the Python app.
+
+Compatibility Wrapper Files (`gui/`)
+------------------------------------
+These exist to keep naming continuity with original C# file names:
+- gui/AboutBox.py
+- gui/LineRate_MainForm.py
+- gui/MainForm.py
+- gui/StructureBuilder.py
+- gui/TLineVariableSweeper.py
+
+Each wrapper simply re-exports the modern module/class from lowercase Phase 2 files.
+
+Notes
+-----
+- Legacy C# source files and behavior notes are in `Csharp/`.
+- `TLIC.pyproj` remains at project root for the existing Visual Studio project layout.
