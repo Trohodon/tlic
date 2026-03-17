@@ -132,12 +132,36 @@ class LineRatingCalc:
     RATE_A_EXP_COEFS = (1.3439657073757576, 0.007706112306248654, -0.08009471300463109)
     RATE_B_EXP_COEFS = (1.2953912734898556, 0.04523019587788621, -0.10066914294618129)
     RATE_C_EXP_COEFS = (1.1875204562259478, -0.02027110534000862, -0.00833582154059509)
-    SEASON_RATING_MULTIPLIERS = {
-        "Summer": (1.0, 1.0, 1.0),
-        "Winter": (1.0719648040396068, 1.063846351209965, 1.042692984997081),
-        "Fall": (1.032751046830818, 1.028754738204435, 1.0195475261480533),
-        "Spring": (1.0168011075869428, 1.0144307940867416, 1.0100717596416546),
-        "Win Peak": (1.0713432024205518, 1.0633041746097496, 1.0423521291922553),
+    SEASON_RATING_MULTIPLIER_POINTS = {
+        "Summer": ((102.0, (1.0, 1.0, 1.0)),),
+        "Fall": (
+            (27.0, (1.0218542721004449, 1.019963864822775, 1.0151386754392446)),
+            (83.0, (1.032751046830818, 1.028754738204435, 1.0195475261480533)),
+            (89.0, (1.0355727628418694, 1.0306409440490396, 1.020015280371439)),
+            (96.0, (1.0384846561655339, 1.0334022508481542, 1.0211050272650832)),
+            (102.0, (1.0416058651600992, 1.035813841456247, 1.022107060225607)),
+        ),
+        "Spring": (
+            (27.0, (1.0114973488971037, 1.0105719181480322, 1.0079353884579076)),
+            (83.0, (1.0168011075869428, 1.0144307940867416, 1.0100717596416546)),
+            (89.0, (1.0190945274826544, 1.0159012747526381, 1.0109676507492233)),
+            (96.0, (1.0205231863368172, 1.0181310740034957, 1.0112343846479857)),
+            (102.0, (1.0221343783879417, 1.0192684682593502, 1.0114059561029156)),
+        ),
+        "Winter": (
+            (27.0, (1.0483339687673863, 1.0444523639587755, 1.033393550331329)),
+            (83.0, (1.0719648040396068, 1.063846351209965, 1.042692984997081)),
+            (89.0, (1.077548251323169, 1.0674219822579505, 1.0441636034603918)),
+            (96.0, (1.083706048186824, 1.0729419651556011, 1.0463809455778241)),
+            (102.0, (1.0901108739498324, 1.0773574767087815, 1.047864343582076)),
+        ),
+        "Win Peak": (
+            (27.0, (1.0479236962939162, 1.0440812006582558, 1.0331303946995745)),
+            (83.0, (1.0713432024205518, 1.0633041746097496, 1.0423521291922553)),
+            (89.0, (1.0770316220884628, 1.066994920590283, 1.0440405943019128)),
+            (96.0, (1.083278847140783, 1.0726007704506883, 1.0463027395272657)),
+            (102.0, (1.0897691648526532, 1.0770835174122396, 1.04748459154982)),
+        ),
     }
 
     def __init__(self) -> None:
@@ -215,11 +239,32 @@ class LineRatingCalc:
     def _apply_season_rating_multiplier(
         cls,
         season: str,
+        amb_temp: float,
         rate_a: float,
         rate_b: float,
         rate_c: float,
     ) -> tuple[float, float, float]:
-        mult_a, mult_b, mult_c = cls.SEASON_RATING_MULTIPLIERS.get(season, (1.0, 1.0, 1.0))
+        points = cls.SEASON_RATING_MULTIPLIER_POINTS.get(season, ((102.0, (1.0, 1.0, 1.0)),))
+        amb_f = amb_temp * 9.0 / 5.0 + 32.0
+
+        if len(points) == 1:
+            mult_a, mult_b, mult_c = points[0][1]
+        else:
+            if amb_f <= points[0][0]:
+                mult_a, mult_b, mult_c = points[0][1]
+            elif amb_f >= points[-1][0]:
+                mult_a, mult_b, mult_c = points[-1][1]
+            else:
+                mult_a = mult_b = mult_c = 1.0
+                for idx in range(len(points) - 1):
+                    low_f, low_vals = points[idx]
+                    high_f, high_vals = points[idx + 1]
+                    if low_f <= amb_f <= high_f:
+                        ratio = (amb_f - low_f) / max(high_f - low_f, 1e-9)
+                        mult_a = low_vals[0] + (high_vals[0] - low_vals[0]) * ratio
+                        mult_b = low_vals[1] + (high_vals[1] - low_vals[1]) * ratio
+                        mult_c = low_vals[2] + (high_vals[2] - low_vals[2]) * ratio
+                        break
         return rate_a * mult_a, rate_b * mult_b, rate_c * mult_c
 
     @staticmethod
@@ -306,7 +351,7 @@ class LineRatingCalc:
             if ref_c > 0.0:
                 rate_c = conductor.rate_c * ((rate_c / ref_c) ** self._rate_c_sensitivity_exponent(amb_temp))
 
-        rate_a, rate_b, rate_c = self._apply_season_rating_multiplier(season, rate_a, rate_b, rate_c)
+        rate_a, rate_b, rate_c = self._apply_season_rating_multiplier(season, amb_temp, rate_a, rate_b, rate_c)
 
         self.rate_a, self.rate_b, self.rate_c = rate_a, rate_b, rate_c
         return self.rate_a, self.rate_b, self.rate_c
