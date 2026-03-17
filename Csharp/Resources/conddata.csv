@@ -1,0 +1,3 @@
+﻿STATIC,NAME,GMR(ft),RADIUS(ft),RATEA(A),RATEB(A),RATEC(A),R(Ohms/mi),XL(Ohms/mi),XC(Ohms/mi),Type,Code,Name
+0,2-Jan,0.0041,0.0052,310,310,310,1.364,0.668,0.1157,cw,none,1/2 cw (unkn)
+1,4-Jan,0.0104,0.0103,130,130,130,7.83,2.07,0.1244,GALV,none,1/4 GALV (none)

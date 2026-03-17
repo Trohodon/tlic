@@ -1,0 +1,117 @@
+TLIC Behavior Summary
+=====================
+
+Overview
+- TLIC is a Windows Forms application for transmission line impedance and rating calculations.
+- Users assemble one or more “line sections” by choosing a conductor, static wire, and structure, then specify line length and environment inputs.
+- The app computes per‑unit and per‑mile impedances and line ratings, and can export results in Python (PSS/E) or PowerWorld AUX formats.
+
+Primary Components
+- Program.cs: Application entry point; launches MainForm.
+- MainForm.cs: Main UI logic for data loading, user inputs, line section management, calculations, and file export.
+- LineRate_MainForm.cs: Thermal line rating calculator (steady‑state current limits) based on conductor data and environmental assumptions.
+- StructureBuilder.cs: UI tool to edit or create custom structure geometries.
+- TLineVariableSweeper.cs: Helper for variable sweeps (used by commented‑out plotting code).
+- AboutBox.cs: Standard “About” dialog populated from assembly metadata.
+
+External Dependencies (by usage in code)
+- TLIClib / TLILib: Domain objects for line models: Branch_JWR, TLine_JWR, Conductor_JWR, Structure_JWR.
+- TLineCalc: TLineThermalModel used by LineRatingCalc.
+- NPlot: Used for plotting structure geometry in MainForm and StructureBuilder.
+- DataSet1: Typed dataset for storing line sections, branch options, and custom structures (schema not included in this folder).
+
+Data Files / Resources
+- Conductor data:
+  - Primary: Resources/conddata.csv (or user‑selected external file).
+  - Additional thermal data: Resources/ConductorData.txt for LineRatingCalc.
+- Structure data:
+  - Primary: Resources/structdata.txt (or user‑selected external file).
+- These files are read from Application.StartupPath + "\Resources\...".
+
+MainForm Workflow
+1) Startup
+   - Initializes defaults (KV base, temperature, MVA base, rho, mileage).
+   - Initializes LineRatingCalc and a default Branch_JWR.
+   - Sets up conductor/structure combo boxes and default selections.
+
+2) Data loading
+   - Conductors: LoadCondList() reads conddata.csv (or external) and populates
+     conductor and static wire lists. It separates rows by a “static” flag (fields[0] == "1").
+   - Structures: LoadStructureList() reads structdata.txt (or external) and populates
+     structure names plus a calculated “ES” value (structure equivalent spacing).
+   - Custom structures stored in DataSet1.CustomStructure are merged into the list.
+
+3) User input changes
+   - Conductor or season change:
+     - Re‑reads conductor data into Conductor_JWR for electrical parameters (R, XL, XC, GMR, radius).
+     - Uses LineRatingCalc to compute summer/winter ampacity ratings (A/B/C).
+     - Updates rating fields used later for MVA calculations.
+   - Static wire change:
+     - Similar conductor lookup and UI description update, but no MVA rating logic.
+   - Structure change:
+     - Loads Structure_JWR either from file or DataSet1.CustomStructure.
+     - Calls DrawStructure() to plot phase and static positions.
+   - Mileage input:
+     - Converts between miles and feet on blur/Enter.
+   - Branch options (KV, MVA, rho, bus numbers, circuit id, in‑service flag):
+     - Trigger recalculation.
+
+4) Line sections
+   - Add Section:
+     - Adds a row to DataSet1.LineSection with cond/static/structure, mileage, MOT, and custom flag.
+     - Recalculates impedances and ratings.
+   - Clear/Delete Section(s):
+     - Clears dataset or removes selected rows and recalculates.
+
+Core Calculation: CalculateImpedances(addBranch)
+- Builds a new Branch_JWR using current bus/ckt/status/KV.
+- For each line section:
+  - Loads Structure_JWR and Conductor_JWR objects from data files.
+  - Creates TLine_JWR with structure, phase conductor, static, mileage, and rho.
+  - Adds section to Branch_JWR.
+- Computes:
+  - Total line length.
+  - Per‑unit positive and zero sequence impedances (R1/X1/C1 and R0/X0/C0).
+  - Per‑mile impedances (only if single section).
+  - PSS/E raw and sequence strings from Branch_JWR.
+- Computes MVA ratings:
+  - For each section, uses LineRatingCalc with conductor type and max operating temperature.
+  - Takes the minimum rating across sections for A/B/C.
+  - Converts amps to MVA using sqrt(3) * KV / 1000.
+- Outputs all results to the main text box in a formatted report.
+
+Line Rating (LineRatingCalc)
+- Reads ConductorData.txt to build a dictionary of conductor thermal properties.
+- Uses TLineThermalModel to solve steady‑state current limits based on:
+  - Ambient temperature, wind, date/time assumptions, conductor size and resistance.
+- Supports special conductor types:
+  - Bundled or triple‑bundled (prefix “b” or “tb” increases rating by 2x/3x).
+  - Hytherm (“hy” prefix) increases temperature limits by +25C.
+  - ACCC and ACCR set different max temperature caps.
+- Produces Rating A/B/C by solving at max temperature and then lower caps.
+
+Structure Editing (StructureBuilder)
+- Provides UI to edit conductor and static coordinates.
+- Allows enabling/disabling static wires (0/1/2).
+- On save, returns updated Structure_JWR, adds it to DataSet1.CustomStructure,
+  and refreshes structure lists.
+
+File I/O
+- Save/Open:
+  - Serializes or restores DataSet1 (branch options, line sections, custom structures) to XML.
+- Script Export:
+  - Python: Writes PSS/E `psspy.branch_data` (and optional sequence data).
+  - AUX: Writes PowerWorld AUX DATA line with impedance and ratings.
+  - Supports overwrite or append when file exists.
+
+UI Notes
+- DrawStructure uses NPlot to plot phases (A/B/C) and statics (G/G1/G2).
+- There are several commented‑out features related to plotting sweeps and transient calculations.
+
+Known Code Issues/Anomalies (as written)
+- Several namespace/typo inconsistencies:
+  - `System.Colletions.Generic` misspelling.
+  - `namespace TLICs` vs `namespace TLIC`.
+  - `structES` vs `structSES` variable naming mismatch.
+  - `currentMvaRateB` vs `currentMVARateB` typo in AUX writer block.
+- These may be transcription errors or uncompiled source; behavior above reflects intent.
