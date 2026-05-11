@@ -1,55 +1,43 @@
-' This doesn't work. I wanted to change the Yes button in the MsgBox to Yes/Didn't Change Anything. Oh well. JWR - 2019/05/09
 Option Compare Database
 
-Private Declare Function SetDlgItemText Lib "user32" _
-    Alias "SetDlgItemTextA" _
-    (ByVal hDlg As Long, _
-    ByVal nIDDlgItem As Long, _
-    ByVal lpString As String) As Long
+Private Type BROWSEINFO
+    hOwner As Long
+    pidlRoot As Long
+    pszDisplayName As String
+    lpszTitle As String
+    ulFlags As Long
+    lpfn As Long
+    lParam As Long
+    iImage As Long
+End Type
 
-Private Declare Function SetWindowsHookEx Lib "user32" _
-    Alias "SetWindowsHookExA" _
-    (ByVal idHook As Long, _
-    ByVal lpfn As Long, _
-    ByVal hmod As Long, _
-    ByVal dwThreadId As Long) As Long
+Private Declare Function SHGetPathFromIDList Lib "shell32.dll" Alias _
+        "SHGetPathFromIDListA" (ByVal pidl As Long, _
+        ByVal pszPath As String) As Long
 
-Private Declare Function UnhookWindowsHookEx Lib "user32" _
-    (ByVal hHook As Long) As Long
+Private Declare Function SHBrowseForFolder Lib "shell32.dll" Alias _
+        "SHBrowseForFolderA" (lpBrowseInfo As BROWSEINFO) _
+        As Long
 
-' Handle to the Hook procedure
-Private hHook As Long
+Private Const BIF_RETURNONLYFSDIRS = &H1
+Public Function BrowseFolder(szDialogTitle As String) As String
+    Dim x As Long, bi As BROWSEINFO, dwIList As Long
+    Dim szPath As String, wPos As Integer
 
-' Hook type
-Private Const WH_CBT = 5
-Private Const HCBT_ACTIVATE = 5
+    With bi
+        .hOwner = hWndAccessApp
+        .lpszTitle = szDialogTitle
+        .ulFlags = BIF_RETURNONLYFSDIRS
+    End With
 
-' Constants
-Public Const IDOK = 1
-Public Const IDCANCEL = 2
-Public Const IDABORT = 3
-Public Const IDRETRY = 4
-Public Const IDIGNORE = 5
-Public Const IDYES = 6
-Public Const IDNO = 7
+    dwIList = SHBrowseForFolder(bi)
+    szPath = Space$(512)
+    x = SHGetPathFromIDList(ByVal dwIList, ByVal szPath)
 
-Public Function MsgBoxSmile()
-
-    ' Set Hook
-    hHook = SetWindowsHookEx(WH_CBT, AddressOf MsgBoxHookProc, 0, GetCurrentThreadId)
-
-    ' Run MessageBox
-    MsgBoxSmile = MsgBoxHookProc("Did you document your changes?", vbYesNo, "Track Changes")
-End Function
-
-Private Function MsgBoxHookProc(ByVal lMsg As Variant, ByVal wParam As Variant, ByVal lParam As Variant) As Long
-    If 5 = HCBT_ACTIVATE Then
-        SetDlgItemText wParam, IDYES, "Yes/Didn't Change Anything"
-        SetDlgItemText wParam, IDNO, "No"
-
-        ' Release the Hook
-        UnhookWindowsHookEx hHook
+    If x Then
+        wPos = InStr(szPath, Chr(0))
+        BrowseFolder = Left$(szPath, wPos - 1)
+    Else
+        BrowseFolder = vbNullString
     End If
-
-    MsgBoxHookProc = wParam
 End Function
