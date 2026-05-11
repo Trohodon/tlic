@@ -101,7 +101,7 @@ Public Sub WriteSnapshotToDyre(ExportAll As Boolean, IncludeFuture As Boolean, P
                     Line = Line + FormatLong(bus, 8)
 
                     If Models.Fields("is_user_model") Then
-                        Line = Line & "USRMDL" & " " & FormatStr(MachID, 13) & FormatStr("'" & ModelType & "'", 13)
+                        Line = Line & "'USRMDL' " & FormatStr(MachID, 13) & FormatStr("'" & ModelType & "'", 13)
                         i = i + 1 ' Need one less column since USRMDL printout takes up extra column
                     Else
                         Line = Line & FormatStr("'" & ModelType & "'", 10) & FormatStr(MachID, 13)
@@ -151,11 +151,10 @@ Public Sub WriteSnapshotToDyre(ExportAll As Boolean, IncludeFuture As Boolean, P
                             i = i + 1
                         Wend
 
-                        Line = Line & " / " & FormatStr(BusName, 8) & " " & Format(BaseKV, "0.0")
-                        Line = Line & "   " & Format(ModelDateStart, "mmm-dd-yyyy") & ", " & Format(ModelDateEnd, "mmm-dd-yyyy")
+                        Line = Line & "/" & FormatStr(BusName, 8) & " " & Format(BaseKV, "0.0")
+                        Line = Line & "   \ , " & Format(ModelDateStart, "mmm-dd-yyyy") & ", " & Format(ModelDateEnd, "mmm-dd-yyyy")
                         Print #DyreFileNumber, Line
-                    End If
-                End If ' ^If (((snapshotDate >= StartDate Or IncludeFuture) And snapshotDate < EndDate And (snapshotDate >= ModelDateStart Or IncludeFuture) And snapshotDate < ModelDateEnd)
+                End If ' ^If (((snapshotDate >= StartDate Or IncludeFuture) And snapshotDate < EndDate And (snapshotDate >= ModelDateStart Or IncludeFuture) And snapshotDate < ModelDateEnd) Or ExportAll)
             End If ' ^If IncludeNoIA_Dyn Or IsNull(Models.Fields("Queue")) Or (Not IsNull(Models.Fields("Queue")) And SignedIA = -1) Then
         End If ' ^If Models.Fields("include").Value Then
 
