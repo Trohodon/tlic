@@ -1,55 +1,55 @@
+' This doesn't work. I wanted to change the Yes button in the MsgBox to Yes/Didn't Change Anything. Oh well. JWR - 2019/05/09
 Option Compare Database
 
-Function ParseBus(pValue, busOne As Boolean) As Long
-    Dim ColonPosition As Integer, ParseLeftBus As String, ParseRightBus As String
+Private Declare Function SetDlgItemText Lib "user32" _
+    Alias "SetDlgItemTextA" _
+    (ByVal hDlg As Long, _
+    ByVal nIDDlgItem As Long, _
+    ByVal lpString As String) As Long
 
-    'Find position of colon
-    ColonPosition = InStr(pValue, ":")
+Private Declare Function SetWindowsHookEx Lib "user32" _
+    Alias "SetWindowsHookExA" _
+    (ByVal idHook As Long, _
+    ByVal lpfn As Long, _
+    ByVal hmod As Long, _
+    ByVal dwThreadId As Long) As Long
 
-    'Return the portion of the string before the colon
-    If ColonPosition > 0 Then
-        ParseLeftBus = Left(pValue, ColonPosition - 1)
-    Else
-        ParseLeftBus = ""
+Private Declare Function UnhookWindowsHookEx Lib "user32" _
+    (ByVal hHook As Long) As Long
+
+' Handle to the Hook procedure
+Private hHook As Long
+
+' Hook type
+Private Const WH_CBT = 5
+Private Const HCBT_ACTIVATE = 5
+
+' Constants
+Public Const IDOK = 1
+Public Const IDCANCEL = 2
+Public Const IDABORT = 3
+Public Const IDRETRY = 4
+Public Const IDIGNORE = 5
+Public Const IDYES = 6
+Public Const IDNO = 7
+
+Public Function MsgBoxSmile()
+
+    ' Set Hook
+    hHook = SetWindowsHookEx(WH_CBT, AddressOf MsgBoxHookProc, 0, GetCurrentThreadId)
+
+    ' Run MessageBox
+    MsgBoxSmile = MsgBoxHookProc("Did you document your changes?", vbYesNo, "Track Changes")
+End Function
+
+Private Function MsgBoxHookProc(ByVal lMsg As Variant, ByVal wParam As Variant, ByVal lParam As Variant) As Long
+    If 5 = HCBT_ACTIVATE Then
+        SetDlgItemText wParam, IDYES, "Yes/Didn't Change Anything"
+        SetDlgItemText wParam, IDNO, "No"
+
+        ' Release the Hook
+        UnhookWindowsHookEx hHook
     End If
 
-    Dim LPosition As Integer
-
-    'Find position of >
-    LPosition = InStr(pValue, ">")
-
-    'Return the portion of the string after the >
-    If LPosition > 0 Then
-        ParseRightBus = Mid(pValue, LPosition + 1)
-
-        'Find position of colon
-        LPosition = InStr(ParseRightBus, ":")
-
-        'Return the portion of the string before the :
-        If LPosition > 0 Then
-            ParseRightBus = Left(ParseRightBus, LPosition - 1)
-        Else
-            ParseRightBus = ""
-        End If
-    Else
-        ParseRightBus = ""
-    End If
-
-    If ParseLeftBus = "" Or ParseRightBus = "" Then
-        ParseBus = 0
-    Else
-        If CLng(ParseLeftBus) < CLng(ParseRightBus) Then
-            If busOne Then
-                ParseBus = ParseLeftBus
-            Else
-                ParseBus = ParseRightBus
-            End If
-        Else
-            If Not busOne Then
-                ParseBus = ParseLeftBus
-            Else
-                ParseBus = ParseRightBus
-            End If
-        End If
-    End If
+    MsgBoxHookProc = wParam
 End Function
