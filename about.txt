@@ -86,62 +86,62 @@ Public Sub WriteSnapshotToDyre(ExportAll As Boolean, IncludeFuture As Boolean, P
 
             BaseKV = Models.Fields("base_kV").Value
             ModelType = Models.Fields("model_type_name").Value
-            MachID = Models.Fields("pt_machine_id").Value
+            MachID = Models.Fields("pti_machine_id").Value
             StartDate = Models.Fields("start_date").Value
             EndDate = Models.Fields("end_date").Value
             ModelDateStart = Models.Fields("model_date_start").Value
             ModelDateEnd = Models.Fields("model_date_end").Value
             Queue = Models.Fields("Queue").Value
-            SignedIA = Models.Fields("signedIA").Value
+            SignedIA = Models.Fields("SignedIA").Value
 
             If IncludeNoIA_Dyn Or IsNull(Models.Fields("Queue")) Or (Not IsNull(Models.Fields("Queue")) And SignedIA = -1) Then
-                If (((snapshotDate >= StartDate Or IncludeFuture) And snapshotDate < EndDate) And (snapshotDate >= ModelDateStart Or IncludeFuture) And snapshotDate < ModelDateEnd) Or ExportAll Then
-                    If ((snapshotDate >= StartDate Or IncludeFuture) And snapshotDate < EndDate) And snapshotDate >= ModelDateStart Or IncludeFuture Then
-                        And Not (Pumping And Models.Fields("bus_number") > 820 And Models.Fields("bus_number") < 829 And (ModelType Like "IEEEG2" Or ModelType Like "WSHYDD")) Then
+                If (((snapshotDate >= StartDate Or IncludeFuture) And snapshotDate < EndDate And (snapshotDate >= ModelDateStart Or IncludeFuture) And snapshotDate < ModelDateEnd) Or ExportAll) _
+                    And Not (Pumping And Models.Fields("bus_number") > 820 And Models.Fields("bus_number") < 829 And (ModelType Like "IEEEG2" Or ModelType Like "WSHYDD")) Then
 
-                        Line = Line + FormatLong(bus, 8)
+                    Line = Line + FormatLong(bus, 8)
 
-                        If Models.Fields("is_user_model") Then
-                            Line = Line & "USRMDL" & " " & FormatStr(MachID, 13) & FormatStr("'" & ModelType & "'", 13)
-                            i = i + 1 ' Need one less column since USRMDL printout takes up extra column
-                        Else
-                            Line = Line & FormatStr("'" & ModelType & "'", 10) & FormatStr(MachID, 13)
-                        End If
+                    If Models.Fields("is_user_model") Then
+                        Line = Line & "USRMDL" & " " & FormatStr(MachID, 13) & FormatStr("'" & ModelType & "'", 13)
+                        i = i + 1 ' Need one less column since USRMDL printout takes up extra column
+                    Else
+                        Line = Line & FormatStr("'" & ModelType & "'", 10) & FormatStr(MachID, 13)
+                    End If
 
-                        Set QDF = db.QueryDefs("DynamicsConstantsByModelID")
-                        QDF.Parameters("ModelID") = ModelID
-                        Set Constants = QDF.OpenRecordset
-						                        If Not Constants.EOF Then
-                            Constants.MoveLast
-                            Constants.MoveFirst
+                    Set QDF = db.QueryDefs("DynamicsConstantsByModelID")
+                    QDF.Parameters("ModelID") = ModelID
+                    Set Constants = QDF.OpenRecordset
 
-                            While Not Constants.EOF
-                                Field = FormatDbl(Constants.Fields("const_value").Value, 13, 8)
+                    If Not Constants.EOF Then
+                        Constants.MoveLast
+                        Constants.MoveFirst
 
-                                If Constants.Fields("is_ICON").Value Then
-                                    Field = FormatDbl(Constants.Fields("const_value").Value, 13, 0)
+                        While Not Constants.EOF
+                            Field = FormatDbl(Constants.Fields("const_value").Value, 13, 8)
+
+                            If Constants.Fields("is_ICON").Value Then
+                                Field = FormatDbl(Constants.Fields("const_value").Value, 13, 0)
+                            End If
+
+                            If Constants.Fields("is_bus_number").Value And Reduced Then
+                                If Constants.Fields("const_value").Value > 0 Then
+                                    Field = FormatDbl(370000 + Constants.Fields("const_value").Value, 13, 0)
+                                Else
+                                    Field = FormatDbl(0, 13, 0)
                                 End If
+                            End If
 
-                                If Constants.Fields("is_bus_number").Value And Reduced Then
-                                    If Constants.Fields("const_value").Value > 0 Then
-                                        Field = FormatDbl(370000 + Constants.Fields("const_value").Value, 13, 0)
-                                    Else
-                                        Field = FormatDbl(0, 13, 0)
-                                    End If
+                            Line = Line & Field
+                            Constants.MoveNext
+                            i = i + 1
+
+                            If i > ConstPerRow Then
+                                If Not Constants.EOF Then
+                                    Print #DyreFileNumber, Line
+                                    Line = Space(18)
+                                    i = 1
                                 End If
-
-                                Line = Line & Field
-                                Constants.MoveNext
-                                i = i + 1
-
-                                If i > ConstPerRow Then
-                                    If Not Constants.EOF Then
-                                        Print #DyreFileNumber, Line
-                                        Line = Space(18)
-                                        i = 1
-                                    End If
-                                End If
-                            Wend
+                            End If
+                        Wend
                         Else
                             MsgBox "Blank values exist in the ""DynamicsConstantsByModelID"" query! Not good."
                         End If
