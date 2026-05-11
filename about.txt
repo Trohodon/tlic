@@ -1,43 +1,102 @@
 Option Compare Database
 
-Private Type BROWSEINFO
-    hOwner As Long
-    pidlRoot As Long
-    pszDisplayName As String
-    lpszTitle As String
-    ulFlags As Long
-    lpfn As Long
-    lParam As Long
-    iImage As Long
-End Type
+Public Sub ValidatePWContFile(FilePath As String, extension As String)
+    'Create constants, variables, and init
+    Const arrSize As Integer = 4000 'placeholder value. Need to figure out how to count lines in an input txt file
+    Const qm As String = """"
+    Dim ContFile As Integer
+    Dim contFileLine, ctgName, errMsgString, dupNames As String
+    Dim ctgNameArr(arrSize), dupArr(arrSize) As String
+    Dim arrCount, dupArrCount, res As Integer
+    arrCount = -1
+    dupArrCount = -1
 
-Private Declare Function SHGetPathFromIDList Lib "shell32.dll" Alias _
-        "SHGetPathFromIDListA" (ByVal pidl As Long, _
-        ByVal pszPath As String) As Long
+    'open contingency file and search for repeat ctg names
+    ContFile = FreeFile
+    Open FilePath & extension For Input As #ContFile
+    While Not EOF(ContFile)
+        Line Input #ContFile, contFileLine 'pulls line from ctg file
+        If Left(contFileLine, 1) = qm Then 'only looks at lines that start with quotation marks
+            arrCount = arrCount + 1
+            ctgName = extractCTGName(contFileLine)
 
-Private Declare Function SHBrowseForFolder Lib "shell32.dll" Alias _
-        "SHBrowseForFolderA" (lpBrowseInfo As BROWSEINFO) _
-        As Long
+            'checks if the current line is the same as any other lines saved in the ctgNameArr array
+            For Count = 0 To arrCount
+                If ctgName = ctgNameArr(Count) Then
 
-Private Const BIF_RETURNONLYFSDIRS = &H1
-Public Function BrowseFolder(szDialogTitle As String) As String
-    Dim x As Long, bi As BROWSEINFO, dwIList As Long
-    Dim szPath As String, wPos As Integer
+                    'store repeat name to duplicate array
+                    dupArrCount = dupArrCount + 1
+                    dupArr(dupArrCount) = ctgName
+                End If
+            Next Count
 
-    With bi
-        .hOwner = hWndAccessApp
-        .lpszTitle = szDialogTitle
-        .ulFlags = BIF_RETURNONLYFSDIRS
-    End With
+            'Stores ctg name in array
+            ctgNameArr(arrCount) = ctgName
+        End If
+    Wend
+    Close #ContFile
 
-    dwIList = SHBrowseForFolder(bi)
-    szPath = Space$(512)
-    x = SHGetPathFromIDList(ByVal dwIList, ByVal szPath)
+    'if something was added to the duplicate array, then we need to show that to the user
+    If dupArrCount <> -1 Then
+        errMsgString = "The " & FilePath & extension & " AUX file contains duplicate contingency names. This will cause Power World to overwrite and miss contingencies with redundant names." _
+            & vbNewLine & "Listed below are the contingency names that appear multiple times in the file:" & vbNewLine & vbNewLine
 
-    If x Then
-        wPos = InStr(szPath, Chr(0))
-        BrowseFolder = Left$(szPath, wPos - 1)
-    Else
-        BrowseFolder = vbNullString
+        'get the duplicate ctg names from dupArr
+        For Count = 0 To dupArrCount
+            dupNames = dupNames & dupArr(Count) & vbNewLine
+        Next Count
+
+        errMsgString = errMsgString & dupNames & vbNewLine & _
+            "Update the names to eliminate redundancy and ensure all applicable contingencies are properly read into Power World prior to performing contingency analysis." _
+            & vbNewLine & vbNewLine & "Do you want the Database to write these redundant names to a .txt file?"
+
+        'show error msg and ask if they want a separate txt
+        res = MsgBox(errMsgString, 4, "Warning: Duplicate Contingency Definition Names")
+        handleUserResponse res, FilePath, dupNames, extension
     End If
+End Sub
+
+Private Function extractCTGName(stringData As Variant) As String
+    Const qm As String = """"
+    Const begStr As String = qm & "P"
+    Dim firDelPos, secDelPos, start, size As Integer
+
+    firDelPos = InStr(stringData, begStr)
+    secDelPos = InStr(2, stringData, qm)
+    start = firDelPos + 1
+    size = secDelPos - firDelPos - 1
+    extractCTGName = Mid(stringData, start, size)
 End Function
+
+Private Sub handleUserResponse(res As Integer, FilePath As String, dupNames As String, extension As String)
+    If res = vbYes Then
+
+        'extracting contingency file type from the extension input
+        Dim cfTypePos As Integer
+        Dim cfType, fileExt As Variant
+        cfTypePos = InStr(extension, ".") - 1
+
+        'separate contingency file type
+        cfType = Mid(extension, 1, cfTypePos)
+        fileExt = "_Duplicate" & cfType & "CTGNames.txt"
+
+        'call sub that prints the data
+        printDuplicatedNames FilePath, dupNames, fileExt, cfType
+    End If
+
+    'If res = vbNo Then do nothing
+End Sub
+
+Private Sub printDuplicatedNames(FilePath As String, dupNames As String, fileExt As Variant, cfType As Variant)
+    Dim ResultsFile As Integer
+    ResultsFile = FreeFile
+
+    If Dir(FilePath & fileExt) <> "" Then _
+        Kill (FilePath & fileExt)
+
+    Open FilePath & fileExt For Output As #ResultsFile
+    Print #ResultsFile, "*** Validation results for " & FilePath & cfType & ".aux ***"
+    Print #ResultsFile, "Any contingency names with multiple appearances are listed below:" & vbNewLine
+    Print #ResultsFile, dupNames & vbNewLine & "End of list"
+    Close #ResultsFile
+End Sub
