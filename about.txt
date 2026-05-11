@@ -1,102 +1,213 @@
 Option Compare Database
 
-Public Sub ValidatePWContFile(FilePath As String, extension As String)
-    'Create constants, variables, and init
-    Const arrSize As Integer = 4000 'placeholder value. Need to figure out how to count lines in an input txt file
-    Const qm As String = """"
-    Dim ContFile As Integer
-    Dim contFileLine, ctgName, errMsgString, dupNames As String
-    Dim ctgNameArr(arrSize), dupArr(arrSize) As String
-    Dim arrCount, dupArrCount, res As Integer
-    arrCount = -1
-    dupArrCount = -1
+Public Function ExportToDyre() As Integer
+    Dim Dir As String
+    Dim Filename As String
+    Dim snapshotDate As Date
+    Dim Regional As Boolean
+    Dim ExportAllModels As Boolean
+    Dim IncludeFuture As Boolean
+    Dim Pumping As Boolean
+    Dim ConstantsPerRow As Integer
+    Dim IncludeNoIA_Dyn As Boolean 'variable for 'Include Without IA' checkbox on the DynamicExport Form
 
-    'open contingency file and search for repeat ctg names
-    ContFile = FreeFile
-    Open FilePath & extension For Input As #ContFile
-    While Not EOF(ContFile)
-        Line Input #ContFile, contFileLine 'pulls line from ctg file
-        If Left(contFileLine, 1) = qm Then 'only looks at lines that start with quotation marks
-            arrCount = arrCount + 1
-            ctgName = extractCTGName(contFileLine)
+    'Get export options from form:
+    Form_DynamicExportForm.Text1.SetFocus
+    Dir = Form_DynamicExportForm.Text1.Text
 
-            'checks if the current line is the same as any other lines saved in the ctgNameArr array
-            For Count = 0 To arrCount
-                If ctgName = ctgNameArr(Count) Then
+    Form_DynamicExportForm.Text16.SetFocus
+    Filename = Form_DynamicExportForm.Text16.Text
 
-                    'store repeat name to duplicate array
-                    dupArrCount = dupArrCount + 1
-                    dupArr(dupArrCount) = ctgName
-                End If
-            Next Count
+    Form_DynamicExportForm.Text4.SetFocus
+    snapshotDate = Form_DynamicExportForm.Text4.Value
 
-            'Stores ctg name in array
-            ctgNameArr(arrCount) = ctgName
-        End If
-    Wend
-    Close #ContFile
+    Form_DynamicExportForm.Check8.SetFocus
+    ExportAllModels = Form_DynamicExportForm.Check8.Value
 
-    'if something was added to the duplicate array, then we need to show that to the user
-    If dupArrCount <> -1 Then
-        errMsgString = "The " & FilePath & extension & " AUX file contains duplicate contingency names. This will cause Power World to overwrite and miss contingencies with redundant names." _
-            & vbNewLine & "Listed below are the contingency names that appear multiple times in the file:" & vbNewLine & vbNewLine
+    Form_DynamicExportForm.CheckIncFuture.SetFocus
+    IncludeFuture = Form_DynamicExportForm.CheckIncFuture.Value
 
-        'get the duplicate ctg names from dupArr
-        For Count = 0 To dupArrCount
-            dupNames = dupNames & dupArr(Count) & vbNewLine
-        Next Count
+    Form_DynamicExportForm.CheckIncFuture.SetFocus
+    Pumping = Form_DynamicExportForm.CheckPumping.Value
 
-        errMsgString = errMsgString & dupNames & vbNewLine & _
-            "Update the names to eliminate redundancy and ensure all applicable contingencies are properly read into Power World prior to performing contingency analysis." _
-            & vbNewLine & vbNewLine & "Do you want the Database to write these redundant names to a .txt file?"
+    Form_DynamicExportForm.Check12.SetFocus
+    Regional = Form_DynamicExportForm.Check12.Value
 
-        'show error msg and ask if they want a separate txt
-        res = MsgBox(errMsgString, 4, "Warning: Duplicate Contingency Definition Names")
-        handleUserResponse res, FilePath, dupNames, extension
-    End If
-End Sub
+    Form_DynamicExportForm.Text14.SetFocus
+    ConstantsPerRow = Form_DynamicExportForm.Text14.Value
 
-Private Function extractCTGName(stringData As Variant) As String
-    Const qm As String = """"
-    Const begStr As String = qm & "P"
-    Dim firDelPos, secDelPos, start, size As Integer
+    Form_DynamicExportForm.CheckNoIA_Dyn.SetFocus
+    IncludeNoIA_Dyn = Form_DynamicExportForm.CheckNoIA_Dyn.Value
 
-    firDelPos = InStr(stringData, begStr)
-    secDelPos = InStr(2, stringData, qm)
-    start = firDelPos + 1
-    size = secDelPos - firDelPos - 1
-    extractCTGName = Mid(stringData, start, size)
+    'Call write to dyre function with options:
+    WriteSnapshotToDyre ExportAllModels, IncludeFuture, Pumping, snapshotDate, Dir & "\" & Filename, Regional, ConstantsPerRow, IncludeNoIA_Dyn
 End Function
 
-Private Sub handleUserResponse(res As Integer, FilePath As String, dupNames As String, extension As String)
-    If res = vbYes Then
+Public Sub WriteSnapshotToDyre(ExportAll As Boolean, IncludeFuture As Boolean, Pumping As Boolean, snapshotDate As Date, Path As String, Reduced As Boolean, ConstPerRow As Integer, IncludeNoIA_Dyn As Boolean)
+    Dim db As DAO.Database
+    Dim Models As DAO.Recordset
+    Dim QDF As DAO.QueryDef
+    Dim Constants As DAO.Recordset
 
-        'extracting contingency file type from the extension input
-        Dim cfTypePos As Integer
-        Dim cfType, fileExt As Variant
-        cfTypePos = InStr(extension, ".") - 1
+    Dim DyreFileNumber As Integer
+    Dim ModelID As Long
+    Dim bus As Long
+    Dim BusName As String
+    Dim BaseKV As Double
 
-        'separate contingency file type
-        cfType = Mid(extension, 1, cfTypePos)
-        fileExt = "_Duplicate" & cfType & "CTGNames.txt"
+    Dim Queue As Variant
+    Dim ModelType, MachID As String
+    Dim StartDate, EndDate, ModelDateStart, ModelDateEnd As Date
+    Dim SignedIA As Variant
+    Dim Line, i As String
+    Dim Field As String
 
-        'call sub that prints the data
-        printDuplicatedNames FilePath, dupNames, fileExt, cfType
+    'TURN OFF WARNINGS!
+    DoCmd.SetWarnings False
+    Set db = CurrentDb()
+    DyreFileNumber = FreeFile
+    Open Path For Output As #DyreFileNumber
+    Set Models = db.OpenRecordset("DynamicsModelInfo", dbOpenDynaset, dbSeeChanges)
+    Models.MoveLast
+    Models.MoveFirst
+    LineOld = ""
+
+    While Not Models.EOF
+        If Models.Fields("include").Value Then
+            Line = ""
+            i = 2
+            ModelID = Models.Fields("model_id").Value
+            BusName = Models.Fields("reduced_name").Value
+            bus = Models.Fields("bus_number").Value
+
+            If Reduced Then
+                bus = bus + 370000
+            End If
+
+            BaseKV = Models.Fields("base_kV").Value
+            ModelType = Models.Fields("model_type_name").Value
+            MachID = Models.Fields("pt_machine_id").Value
+            StartDate = Models.Fields("start_date").Value
+            EndDate = Models.Fields("end_date").Value
+            ModelDateStart = Models.Fields("model_date_start").Value
+            ModelDateEnd = Models.Fields("model_date_end").Value
+            Queue = Models.Fields("Queue").Value
+            SignedIA = Models.Fields("signedIA").Value
+
+            If IncludeNoIA_Dyn Or IsNull(Models.Fields("Queue")) Or (Not IsNull(Models.Fields("Queue")) And SignedIA = -1) Then
+                If (((snapshotDate >= StartDate Or IncludeFuture) And snapshotDate < EndDate) And (snapshotDate >= ModelDateStart Or IncludeFuture) And snapshotDate < ModelDateEnd) Or ExportAll Then
+                    If ((snapshotDate >= StartDate Or IncludeFuture) And snapshotDate < EndDate) And snapshotDate >= ModelDateStart Or IncludeFuture Then
+                        And Not (Pumping And Models.Fields("bus_number") > 820 And Models.Fields("bus_number") < 829 And (ModelType Like "IEEEG2" Or ModelType Like "WSHYDD")) Then
+
+                        Line = Line + FormatLong(bus, 8)
+
+                        If Models.Fields("is_user_model") Then
+                            Line = Line & "USRMDL" & " " & FormatStr(MachID, 13) & FormatStr("'" & ModelType & "'", 13)
+                            i = i + 1 ' Need one less column since USRMDL printout takes up extra column
+                        Else
+                            Line = Line & FormatStr("'" & ModelType & "'", 10) & FormatStr(MachID, 13)
+                        End If
+
+                        Set QDF = db.QueryDefs("DynamicsConstantsByModelID")
+                        QDF.Parameters("ModelID") = ModelID
+                        Set Constants = QDF.OpenRecordset
+						                        If Not Constants.EOF Then
+                            Constants.MoveLast
+                            Constants.MoveFirst
+
+                            While Not Constants.EOF
+                                Field = FormatDbl(Constants.Fields("const_value").Value, 13, 8)
+
+                                If Constants.Fields("is_ICON").Value Then
+                                    Field = FormatDbl(Constants.Fields("const_value").Value, 13, 0)
+                                End If
+
+                                If Constants.Fields("is_bus_number").Value And Reduced Then
+                                    If Constants.Fields("const_value").Value > 0 Then
+                                        Field = FormatDbl(370000 + Constants.Fields("const_value").Value, 13, 0)
+                                    Else
+                                        Field = FormatDbl(0, 13, 0)
+                                    End If
+                                End If
+
+                                Line = Line & Field
+                                Constants.MoveNext
+                                i = i + 1
+
+                                If i > ConstPerRow Then
+                                    If Not Constants.EOF Then
+                                        Print #DyreFileNumber, Line
+                                        Line = Space(18)
+                                        i = 1
+                                    End If
+                                End If
+                            Wend
+                        Else
+                            MsgBox "Blank values exist in the ""DynamicsConstantsByModelID"" query! Not good."
+                        End If
+
+                        While i <= ConstPerRow
+                            Line = Line & Space(13)
+                            i = i + 1
+                        Wend
+
+                        Line = Line & " / " & FormatStr(BusName, 8) & " " & Format(BaseKV, "0.0")
+                        Line = Line & "   " & Format(ModelDateStart, "mmm-dd-yyyy") & ", " & Format(ModelDateEnd, "mmm-dd-yyyy")
+                        Print #DyreFileNumber, Line
+                    End If
+                End If ' ^If (((snapshotDate >= StartDate Or IncludeFuture) And snapshotDate < EndDate And (snapshotDate >= ModelDateStart Or IncludeFuture) And snapshotDate < ModelDateEnd)
+            End If ' ^If IncludeNoIA_Dyn Or IsNull(Models.Fields("Queue")) Or (Not IsNull(Models.Fields("Queue")) And SignedIA = -1) Then
+        End If ' ^If Models.Fields("include").Value Then
+
+        Models.MoveNext
+    Wend ' ^While Not Models.EOF
+
+    Close #DyreFileNumber
+
+    'TURN ON WARNINGS!
+    DoCmd.SetWarnings True
+
+    MsgBox "Done"
+
+End Sub
+
+Public Function FormatDbl(num As Double, Width As Integer, Precision As Integer)
+
+    Dim DecFormat As String
+    Dim i As Integer
+
+    If Precision > 0 Then
+        DecFormat = "0.0"
+    Else
+        DecFormat = "0"
     End If
 
-    'If res = vbNo Then do nothing
-End Sub
+    If num = 0# Then
+        FormatDbl = Format(num, DecFormat) & Space(Width - Len(Format(num, DecFormat)))
+    ElseIf Round(num, 0) = num Then
+        FormatDbl = Format(num, DecFormat) & Space(Width - Len(Format(num, DecFormat)))
+    Else
+        FormatDbl = Format(num) & Space(Width - Len(Format(num)))
+    End If
 
-Private Sub printDuplicatedNames(FilePath As String, dupNames As String, fileExt As Variant, cfType As Variant)
-    Dim ResultsFile As Integer
-    ResultsFile = FreeFile
+End Function
 
-    If Dir(FilePath & fileExt) <> "" Then _
-        Kill (FilePath & fileExt)
+Public Function FormatInt(num As Integer, Width As Integer)
 
-    Open FilePath & fileExt For Output As #ResultsFile
-    Print #ResultsFile, "*** Validation results for " & FilePath & cfType & ".aux ***"
-    Print #ResultsFile, "Any contingency names with multiple appearances are listed below:" & vbNewLine
-    Print #ResultsFile, dupNames & vbNewLine & "End of list"
-    Close #ResultsFile
-End Sub
+    FormatInt = num & Space(Width - Len(Format(num, "0")))
+
+End Function
+
+Public Function FormatLong(num As Long, Width As Integer)
+
+    FormatLong = num & Space(Width - Len(Format(num, "0")))
+
+End Function
+
+Public Function FormatStr(str As String, Width As Integer)
+    If (Width - Len(str)) >= 0 Then
+        FormatStr = str & Space(Width - Len(str))
+    Else
+        FormatStr = str
+    End If
+End Function
