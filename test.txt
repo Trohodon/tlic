@@ -427,7 +427,7 @@ End Function
 '            Me.SolveTransientTauMethod()
 '            Me.m_dt = Me.m_tau / 100#
 '        End If
-'        Me.m_If = Me.TemperatureAt(Me.m_Ii, 0.1)
+'        Me.m_Ti = Me.TemperatureAt(Me.m_Ii, 0.1)
 '        ti = Me.m_Ti
 '        num10 = Me.m_Ti
 '        model.maxTemperature = ti
@@ -489,8 +489,8 @@ End Function
 '        While (ti < Me.m_Tc) AndAlso (num5 < num4)
 '            model.m_If += num2
 '            model.m_Tf = Me.TemperatureAt(model.m_If, 0.1)
-'            model.m_tau = ((model.m_Tf - model.m_Ti) * (1# - Math.Pow(-model.m_tmax / model.m_tau)))
-'            ti = model.m_Tf
+'            model.m_tau = ((model.m_Tf - model.m_Ti) * model.m_mCp) / (model.Resistivity * ((model.m_If * model.m_If) - (model.m_Ii * model.m_Ii)))
+'            ti = model.m_Ti + ((model.m_Tf - model.m_Ti) * (1# - math.pow(-model.m_tmax / model.m_tau)))
 '            model.maxTemperature = ti
 '            model.SolveSteadyState()
 '            num5 += 1
