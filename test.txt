@@ -29,9 +29,9 @@ Public Sub CalculateAllImpedancesAndRatings()
                 SectionID = Sections.Fields("section_id").Value 'Get the section id from the current row
                 SectionName = Sections.Fields("section_name").Value 'Get the section name from the current row
                 If IsNumeric(Left(SectionName, 1)) Or UCase(SectionName) = "NONAME" Or UCase(Left(SectionName, 2)) = "CD" _
-                    Or UCase(Left(SectionName, 3)) = "BUS" Or UCase(Left(SectionName, 4)) = "FOLD" Then ' Only calc ratings for conductors
-                    'If IsNumeric(Left(SectionName, 1)) Or SectionName = "NONAME" Or Left(SectionName, 2) = "CD" Then ' Only calc for conductors
-                    RatingsCalc.tempF = Sections.Fields("MOT_F").Value
+                    Or UCase(Left(SectionName, 3)) = "BUS" Or UCase(Left(SectionName, 4)) = "FOLD" Then ' Only calc ratings for conductors (their sect name starts with number, NONAME, CD (Ckt breaker Drop)), BUS or FOLD (Fold-in)
+                    'If IsNumeric(Left(SectionName, 1)) Or SectionName = "NONAME" Or Left(SectionName, 2) = "CD" Then ' Only calc for conductors (their sect name starts with number or CD (Ckt breaker Drop))
+                    RatingsCalc.tempF = Sections.Fields("MOT_°F").Value
                     RatingsCalc.phase_cond_ID = Sections.Fields("phase_cond_id").Value
                     RatingsCalc.RebuiltSoon = Sections.Fields("RebuiltSoon").Value
                     If IsNumeric(Sections.Fields("BundledSpacing").Value) Then ' If num value present assign it
@@ -143,7 +143,7 @@ Public Sub CalculateAllImpedancesAndRatings()
                     Bus1NomVolt = Bus2NomVolt 'We need the System High Side bus voltage per the formula so this makes sure we get it.
                 End If
 
-                XFMR_R = Round((FL_Cop_Loss / 1000) / (PowerBase ^ 2), 6)
+                XFMR_R = Round((FL_Cop_Loss / 10000) / (PowerBase ^ 2), 6)
                 ZpuOld = Round((XFMRImped / 100) / PowerBase * 100, 6) 'this assumes the system base is always 100 MVA and is hard coded as shown
                 XFMR_X = Round(ZpuOld * (XFMR_NomVolt ^ 2 / Bus1NomVolt ^ 2), 7) 'using the change of base formula here.
 
@@ -153,23 +153,21 @@ Public Sub CalculateAllImpedancesAndRatings()
                 XFMR_R = XFMRBusesQuery.Fields("R").Value
                 XFMR_X = XFMRBusesQuery.Fields("X").Value
 
-            Else
-
-            'if the CalcType field is left blank or proper cells were not filled in then make the field blank
+            Else 'if the CalcType field is left blank or proper cells were not filled in then make the field blank
             
-			DoCmd.RunSQL "UPDATE TwoWindings SET R = Null, X = Null WHERE (two_winding_id = " & TwoWindingID & ");" 'set R and X to blank if the R_X CalcType field is left blank
+			DoCmd.RunSQL "UPDATE TwoWindings SET R = Null, X = Null WHERE (two_winding_id = " & TwoWindingID & ");" 'set R and X to blank if the R_X_CalcType field is left blank
 
             XFMR_R = XFMRBusesQuery.Fields("R").Value 'set variable to null so zero seq can be set to blank as well
             XFMR_X = XFMRBusesQuery.Fields("X").Value 'set variable to null so zero seq can be set to blank as well
 
             If XFMRBusesQuery.Fields("include") = True Then 'if the field is blank and the include box is checked...send user a warning message
-                MsgBox "MUST CHECK! Transformer with two_winding_id = " & TwoWindingID & " has no impedance. Make sure proper data is provided for the desired CalcType", vbOKOnly + vbCritical, ""
+                MsgBox "MUST CHECK! Transformer with two_winding_id " & TwoWindingID & " has no impedance. Make sure proper data is provided for the desired CalcType", vbOKOnly + vbCritical, "Warning" 'warn the user
             End If
         End If
 
         'now address zero sequence columns
         If Z0_CalcType = "UsePosSeq" Then 'check to see if it's blank or an error will occur
-            If IsNull(XFMR_R) Or IsNull(XFMR_X) Then 'if its blank (meaning the user forgot to put override values in, then make the zero seq field blank
+            If IsNull(XFMR_R) Or IsNull(XFMR_X) Then 'if its blank(meaning the user forgot to put override values in, then make the zero seq field blank
                 DoCmd.RunSQL "UPDATE TwoWindings SET R0_pu = Null, X0_pu = Null WHERE (two_winding_id = " & TwoWindingID & ");" 'set R0 and X0 to blank if the override values are left blank
             Else
                 DoCmd.RunSQL "UPDATE TwoWindings SET R0_pu = " & XFMR_R & ", X0_pu = " & XFMR_X & " WHERE (two_winding_id = " & TwoWindingID & ");" 'place new values in table
@@ -182,10 +180,10 @@ Public Sub CalculateAllImpedancesAndRatings()
         XFMRBusesQuery.MoveNext 'Move cursor to next row
     Wend
 
-    '**********************************************************************************************************************
+    '***********************************************************************************************************
     'Print errors to user:
     If SomeNotFound Then 'If one or more sections did not compute then:
-        MsgBox "These sections did not have their impedances calculated:" & vbCrLf & NotFound 'Print errors
+        MsgBox "These sections did not have their impedances calculated:" & vbCrLf & NotFound 'print errors
     Else
         MsgBox "Done with no errors."
     End If
@@ -194,7 +192,7 @@ Public Sub CalculateAllImpedancesAndRatings()
 	
 	'now update the 'TimeStamp' table so the time stamp text box on the ModelBuildForm is updated below each button.
     DoCmd.SetWarnings False
-    DoCmd.RunSQL "UPDATE TimeStamp1 SET TimeStamp1.Recalc_Impedances = " & Chr(39) & Format(Now(), "MM/dd/yyyy  hh:mm AM/PM") & Chr(39) & " WHERE TimeStamp_ID = " & 1 & ";"
+    DoCmd.RunSQL "UPDATE TimeStamp1 SET TimeStamp1.Recalc_Impedances_And_Ratings = " & Chr(39) & Format(Now(), "MM/dd/yyyy  hh:mm AM/PM") & Chr(39) & " WHERE TimeStamp_ID = " & 1 & ";"
     DoCmd.RunSQL "UPDATE TimeStamp1 SET TimeStamp1.Recalc_Impedances = " & Chr(39) & Format(Now(), "MM/dd/yyyy  hh:mm AM/PM") & Chr(39) & " WHERE TimeStamp_ID = " & 1 & ";"
     DoCmd.RunSQL "UPDATE TimeStamp1 SET TimeStamp1.Recalc_Ratings = " & Chr(39) & Format(Now(), "MM/dd/yyyy  hh:mm AM/PM") & Chr(39) & " WHERE TimeStamp_ID = " & 1 & ";"
     DoCmd.SetWarnings True
@@ -252,10 +250,10 @@ Public Sub CalculateAllImpedances()
                 If calcImpedancesString <> "" Then _
                     DoCmd.RunSQL SQL 'Run SQL
 
-                If Not Success Then 'If unsuccessful, add line to error report:
-                    NotFound = NotFound & SectionID & vbCrLf
-                    SomeNotFound = True
-                End If
+                ' If Not Success Then 'If unsuccessful, add line to error report:
+                '     NotFound = NotFound & SectionID & vbCrLf
+                '     SomeNotFound = True
+                ' End If
                 Sections.MoveNext 'Move cursor to next row
             Wend
             'Print errors to user:
@@ -288,22 +286,22 @@ Public Function CalculateSectionImpedances(SectionID As Long, Verbose As Boolean
     Dim R1, X1, B1, R0, X0, B0 As Double
     Dim Params(21) As Double 'Input data array for Line.CalculateImpedance Function
 
-    ' Dim line As tlineLib.TLine 'Init Line object. This object is contained in a COM-wrapped .NET assembly
-    'This Call will not work unless the tlinelib.dll is registered on your machine using regasm.exe
+    ' Dim line As tlinelib.TLine 'Init Line object. This object is contained in a COM-wrapped .NET assembly
+    'This call will not work unless the tlielib.dll is registered on your machine using regasm.exe
 
     'Impedance Calc Params:
     Dim Ax, Ay, Bx, By, Cx, Cy, G1x, G1y, G2x, G2y As Double 'Structure Position Coords
-    Dim PhaseGMR, PhaseRadius, PhaseR, PhaseX, PhaseC As Double 'Conductor Properties
-    Dim StaticGMR, StaticRadius, StaticR, StaticX, StaticC As Double 'Static Wire Properties
-    Dim KV, Mileage, Rho As Double 'Corridor parameters
-    Dim ZFactor, YFactor As Double 'These will cache factor to convert SI impedances to p.u.
+    Dim PhaseGMR, PhaseRadius, PhaseR, PhaseX, PhaseC As Double 'Conductor properties
+    Dim StaticGMR, StaticRadius, StaticR, StaticX, StaticC As Double 'Static wire properties
+    Dim KV, Mileage, Rho As Double 'corridor parameters
+    Dim Zfactor, Yfactor As Double 'these will cache factor to convert SI impedances to p.u.
 
     'Open section data init Line:
     Set db = CurrentDb 'Set the Db variable to point to the current Db
-    Set QDF = db.QueryDefs("SectionWithData") 'Run canned query that combines all relevant section data
-    Set Sections = QDF.OpenRecordset 'Open the query data as recordset object
-    'Set ElectricalLineModel = New LineLib.TLine 'Instantiate Line object
-    Set ElectricalLineModel = New TLICS.TLine 'JWR instantiate Line object
+    Set QDF = db.QueryDefs("SectionsWithData") 'Run canned query that combines all relevant section data
+    Set Sections = QDF.OpenRecordset 'open the query data as a recordset object
+    ' Set ElectricalLineModel = New tlinelib.TLine 'instantiate Line object
+    Set ElectricalLineModel = New TLICs.TLine_JWR 'instantiate Line object
 
     'Dim Rating As Variant
     'Set ThermalLineModel = New TLineCalc.TLineThermalModel
@@ -345,8 +343,8 @@ Public Function CalculateSectionImpedances(SectionID As Long, Verbose As Boolean
 
         If Mileage > 0 And StaticGMR <> 0 And StaticGMR <> "" And Not IsNull(StaticGMR) Then
             'Call Line.CalculateImpedances Method of object TLine in library tlinelib
-            'Inputs: [Ax(ft), Ay(ft), Bx(ft), By(ft), Cx(ft), Cy(ft), G1x(ft), G1y(ft), G2x(ft), G2y(ft), PhaseGMR(ft), PhaseRadius(ft), PhaseR(ohm/mi), PhaseX(ohm/mi), PhaseC(Mohm-mi), StaticGMR(ft), StaticRadius(ft), StaticR(ohm/mi), Rho(ohm-m)]
-            'Outputs: [R1(ohms/mi), X1(ohms/mi), B1(uS/mi), R0(ohms/mi), X0(ohm/mi), B0(uS/mi)]:
+            'Inputs: [Ax(ft), Ay(ft), Bx(ft), By(ft), Cx(ft), Cy(ft), G1x(ft), G1y(ft), G2x(ft), G2y(ft), PhaseGMR(ft), PhaseRadius(ft), PhaseR(ohm/mi), PhaseX(ohm/mi/ft), PhaseC(Mohm-mi/ft), StaticGMR(ft), StaticRadius(ft), StaticR(ohm/mi), Rho(ohm-m)]
+            'Outputs: [R1(ohms/mi), X1(ohms/mi), B1(uS/mi), R0(ohms/mi), X0(ohms/mi), B0(uS/mi)]:
 
             Params(0) = Ax
             Params(1) = Ay
