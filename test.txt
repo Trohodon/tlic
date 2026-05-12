@@ -1,12 +1,13 @@
+Option Compare Database
 Public phase_cond_ID As Double
 Public tempF As Double
 Public RebuiltSoon As Boolean
 Public BundledSpacing As Integer
 
 Public Sub CalculateAllRatings() 'Recalc Ratings Button
-    'Dim line As TLICs.TLine 'Init Line object. This object is contained in a COM-wrapped .NET assembly
-    'Set ElectricalLineModel = New TLineCalc.TLine 'instantiate Line object
-    'Set TLineCalc = New TLineLib.TLine 'instantiate Line object
+    ' Dim line As TLICs.TLine 'Init Line object. This object is contained in a COM-wrapped .NET assembly
+    ' Set ElectricalLineModel = New TLineCalc.TLine 'instantiate Line object
+    ' Set TLineCalc = New TLineLib.TLine 'instantiate Line object
 
     Dim db As DAO.Database 'Database handle
     Set db = CurrentDb 'Get handle to current database
@@ -25,7 +26,7 @@ Public Sub CalculateAllRatings() 'Recalc Ratings Button
     Sections.MoveFirst
 
     If Not (Sections.EOF) Then 'If table not empty then:
-        Result = MsgBox("This will take a few minutes either way, but would you like to clear all values then recalculate (will take much longer)?", vbYesNoCancel, "RatingsCalc Routine")
+        Result = MsgBox("This will take a few minutes either way, but would you like to clear all values then recalculate (will take much longer)?", vbYesNoCancel, "RatingsCalc Routine") 'Warn user of time requirements
         If Result = vbYes Or Result = vbNo Then 'If user is OK with time then:
             DoCmd.SetWarnings (False) 'Turn off warnings
             'Loop through sections, calculate section ratings, and write ratings back to section record:
@@ -33,8 +34,8 @@ Public Sub CalculateAllRatings() 'Recalc Ratings Button
                 SectionID = Sections.Fields("section_id").Value 'Get the section id from the current row
                 SectionName = Sections.Fields("section_name").Value 'Get the section name from the current row
                 If IsNumeric(Left(SectionName, 1)) Or UCase(SectionName) = "NONAME" Or UCase(Left(SectionName, 2)) = "CD" _
-                    Or UCase(Left(SectionName, 3)) = "BUS" Or UCase(Left(SectionName, 4)) = "FOLD" Then ' Only calc ratings for conductors (their sect name starts with number, NONAME, CD (Ckt breaker Drop)) OR BUS
-                    tempF = Sections.Fields("MOT_F").Value
+                    Or UCase(Left(SectionName, 3)) = "BUS" Or UCase(Left(SectionName, 4)) = "FOLD" Then ' Only calc ratings for conductors (their sect name starts with number, NONAME, CD (Ckt breaker Drop)), BUS or FOLD (Fold-in)
+                    tempF = Sections.Fields("MOT_°F").Value
                     phase_cond_ID = Sections.Fields("phase_cond_id").Value
                     RebuiltSoon = Sections.Fields("RebuiltSoon").Value
                     If IsNumeric(Sections.Fields("BundledSpacing").Value) Then ' If num value present assign it
@@ -52,11 +53,12 @@ Public Sub CalculateAllRatings() 'Recalc Ratings Button
                     End If
                 ElseIf Result = vbYes And UCase(SectionName) <> "NEIGHBOR" Then
                     'Build SQL string to clear out ratings in section table:
-                    'Build SQL string to clear out ratings in section table:
                     'SQL = "UPDATE BranchSections SET rate_A = """", rate_B = """", rate_C = """", rate_A_win = """", rate_B_win = """", rate_C_win = """" WHERE section_id = " & SectionID
                     'Removed line above and added below. 10/2023 BU
-                    SQL = "UPDATE BranchSections SET rate_A = """", rate_B = """", rate_C = """", rate_A_WinPeak = """", rate_B_WinPeak = """", rate_C_WinPeak = """", rate_A_OpsPlnWin = """", rate_B_OpsPlnWin = """", rate_C_OpsPlnWin = """", _
-                    & "rate_A_Spr = """", rate_B_Spr = """", rate_C_Spr = """", rate_A_Sum = """", rate_B_Sum = """", rate_C_Sum = """", rate_A_Fall = """", rate_B_Fall = """", rate_C_Fall = """" WHERE section_id = " & SectionID
+                    SQL = "UPDATE BranchSections SET rate_A = """", rate_B = """", rate_C = """", rate_A_win = """", rate_B_win = """", rate_C_win = """"," _
+					& "rate_A_WinPeak = """", rate_B_WinPeak = """", rate_C_WinPeak = """", rate_A_OpsPlnWin = """", rate_B_OpsPlnWin = """", rate_C_OpsPlnWin = """"," _
+                    & "rate_A_Spr = """", rate_B_Spr = """", rate_C_Spr = """", rate_A_Sum = """", rate_B_Sum = """", rate_C_Sum = """"," _
+					& "rate_A_Fall = """", rate_B_Fall = """", rate_C_Fall = """" WHERE section_id = " & SectionID
 
                     DoCmd.RunSQL SQL
                 End If
@@ -66,8 +68,8 @@ Public Sub CalculateAllRatings() 'Recalc Ratings Button
             'Print errors to user:
             If SomeNotFound Then 'If one or more sections did not compute then:
                 MsgBox "These sections did not have their ratings calculated:" & vbCrLf & NotFound 'print errors
-            Else
-                MsgBox "Done with no errors."
+            ' Else
+            '     MsgBox "Done with no errors."
             End If
         End If
     ElseIf Sections.EOF Then
@@ -78,29 +80,27 @@ Public Sub CalculateAllRatings() 'Recalc Ratings Button
 
     If Result = vbYes Or Result = vbNo Then
         ' Calc TwoWindingsSections ratings
-        Dim TwoSections As DAO.Recordset 'Recordset object for Section Table
-        Dim TwoSectionID As Long 'TwoSection id field cache
-        Dim TwoSectionName As String 'TwoSection name field cache
-        Set TwoSections = db.OpenRecordset("TwoWindingsSections") 'Open TwoWindingsSections Query
+        Dim TwoWSections As DAO.Recordset 'Recordset object for Section Table
+        Dim TwoWSectionID As Long 'TwoWSection id field cache
+        Dim TwoWSectionName As String 'TwoWSection name field cache
+        Set TwoWSections = db.OpenRecordset("TwoWindingsSections") 'Open TwoWindingsSections Query
 
         'Reset row cursor
-        TwoSections.MoveLast
-        TwoSections.MoveFirst
+        TwoWSections.MoveLast
+        TwoWSections.MoveFirst
 
-        If Not (TwoSections.EOF) Then 'If table not empty then:
+        If Not (TwoWSections.EOF) Then 'If table not empty then:
             'Loop through sections, calculate section ratings, and write ratings back to section record:
-            While Not TwoSections.EOF 'Until the end of the table:
-                TwoSectionID = TwoSections.Fields("section_id").Value 'Get the section id from the current row
-                TwoSectionName = TwoSections.Fields("section_name").Value 'Get the section name from the current row
-                If IsNumeric(Left(TwoSectionName, 1)) Or UCase(TwoSectionName) = "NONAME" _
-                    Or UCase(Left(TwoSectionName, 3)) = "BUS" Then ' Only calc ratings for conductors (their sect name starts with number, NONAME, CD (Ckt breaker Drop)) OR BUS
-                If IsNumeric(Left(TwoSectionName, 1)) Or UCase(TwoSectionName) = "NONAME" _
-                    Or UCase(Left(TwoSectionName, 3)) = "BUS" Then ' Only calc ratings for conductors (their sect name starts with number, NONAME, CD (Ckt breaker Drop)) OR BUS
+            While Not TwoWSections.EOF 'Until the end of the table:
+                TwoWSectionID = TwoWSections.Fields("section_id").Value 'Get the section id from the current row
+                TwoWSectionName = TwoWSections.Fields("section_name").Value 'Get the section name from the current row
+                If IsNumeric(Left(TwoWSectionName, 1)) Or UCase(TwoWSectionName) = "NONAME" Or UCase(Left(TwoWSectionName, 2)) = "CD" _
+                    Or UCase(Left(TwoWSectionName, 3)) = "BUS" Then ' Only calc ratings for conductors (their sect name starts with number, NONAME, CD (Ckt breaker Drop)) OR BUS
                     tempF = 500 ' Setting to 500 to make sure MOT is always highest possible for TwoWindings.
-                    phase_cond_ID = TwoSections.Fields("phase_cond_id").Value
+                    phase_cond_ID = TwoWSections.Fields("phase_cond_id").Value
                     RebuiltSoon = False
-                    If IsNumeric(TwoSections.Fields("BundledSpacing").Value) Then ' If num value present assign it
-                        BundledSpacing = TwoSections.Fields("BundledSpacing").Value
+                    If IsNumeric(TwoWSections.Fields("BundledSpacing").Value) Then ' If num value present assign it
+                        BundledSpacing = TwoWSections.Fields("BundledSpacing").Value
                     Else ' Otherwise set it to 12
                         BundledSpacing = 12
                     End If
@@ -108,23 +108,25 @@ Public Sub CalculateAllRatings() 'Recalc Ratings Button
                     calcRatingsString = CalculateSectionRatings(False)
                     If calcRatingsString <> "" Then
                         'Build SQL string to write ratings to section table:
-                        SQL = "UPDATE TwoWindingsSections SET " & calcRatingsString & " WHERE section_id = " & TwoSectionID
+                        SQL = "UPDATE TwoWindingsSections SET " & calcRatingsString & " WHERE section_id = " & TwoWSectionID
 
                         DoCmd.RunSQL SQL 'Run SQL
                     End If
                 ElseIf Result = vbYes Then
                     'Build SQL string to clear out ratings in TwoWindingsSection table:
-                    SQL = "UPDATE TwoWindingsSections SET rate_A = """", rate_B = """", rate_C = """", rate_A_win = """", rate_B_win = """", rate_C_win = """" WHERE section_id = " & TwoSectionID
-
-                    'SQL = "UPDATE TwoWindingsSections SET Amp_rate_A = """", Amp_rate_B = """", Amp_rate_C = """", Amp_rate_A_win = """", Amp_rate_B_win = """", Amp_rate_C_win = """" WHERE section_id = " & TwoSectionID
+                    ' SQL = "UPDATE TwoWindingsSections SET rate_A = """", rate_B = """", rate_C = """", rate_A_win = """", rate_B_win = """", rate_C_win = """" WHERE section_id = " & TwoWSectionID
+					'
+                    'SQL = "UPDATE TwoWindingsSections SET Amp_rate_A = """", Amp_rate_B = """", Amp_rate_C = """", Amp_rate_A_win = """", Amp_rate_B_win = """", Amp_rate_C_win = """" WHERE section_id = " & TwoWSectionID
                     'Removed line above and added below. 10/2023 BU
-                    SQL = "UPDATE TwoWindingsSections SET Amp_rate_A = """", Amp_rate_B = """", Amp_rate_C = """", Amp_rate_A_WinPeak = """", Amp_rate_B_WinPeak = """", Amp_rate_C_WinPeak = """", Amp_rate_A_OpsPlnWin = """", Amp_rate_B_OpsPlnWin = """", Amp_rate_C_OpsPlnWin = """", _
-                    & "Amp_rate_A_Spr = """", Amp_rate_B_Spr = """", Amp_rate_C_Spr = """", Amp_rate_A_Sum = """", Amp_rate_B_Sum = """", Amp_rate_C_Sum = """", Amp_rate_A_Fall = """", Amp_rate_B_Fall = """", Amp_rate_C_Fall = """" WHERE section_id = " & TwoSectionID
+                    SQL = "UPDATE TwoWindingsSections SET Amp_rate_A = """", Amp_rate_B = """", Amp_rate_C = """", Amp_rate_A_win = """", Amp_rate_B_win = """", Amp_rate_C_win = """"," _ 
+					& "Amp_rate_A_WinPeak = """", Amp_rate_B_WinPeak = """", Amp_rate_C_WinPeak = """", Amp_rate_A_OpsPlnWin = """", Amp_rate_B_OpsPlnWin = """", Amp_rate_C_OpsPlnWin = """"," _
+                    & "Amp_rate_A_Spr = """", Amp_rate_B_Spr = """", Amp_rate_C_Spr = """", Amp_rate_A_Sum = """", Amp_rate_B_Sum = """", Amp_rate_C_Sum = """"," _
+					& "Amp_rate_A_Fall = """", Amp_rate_B_Fall = """", Amp_rate_C_Fall = """" WHERE section_id = " & TwoSectionID
 
                     DoCmd.RunSQL SQL
                 End If
 
-                TwoSections.MoveNext 'Move cursor to next row
+                TwoWSections.MoveNext 'Move cursor to next row
             Wend
             'Print errors to user:
             If SomeNotFound Then 'If one or more sections did not compute then:
@@ -134,7 +136,7 @@ Public Sub CalculateAllRatings() 'Recalc Ratings Button
             End If
 
             DoCmd.SetWarnings True 'turn warnings back on
-        ElseIf TwoSections.EOF Then
+        ElseIf TwoWSections.EOF Then
             MsgBox "The TwoWindingsSections table is empty. Quitting!"
         Else
             MsgBox "The Conductors table is empty. Quitting!"
@@ -159,8 +161,8 @@ Public Function CalculateSectionRatings(Verbose As Boolean) As String
     Dim diam_mm As Double, diam_in As Double, rLow As Double, rHigh As Double ' Values to obtain from Conductors table
     Dim condName As String, condCodeName As String, tempC As Double, tempC_A As Double, tempC_B As Double, tempC_C As Double
     Dim RatingA As Double, RatingB As Double, RatingC As Double, WinRatingA As Double, WinRatingB As Double, WinRatingC As Double
-    Dim WinPeakRatingA As Double, WinPeakRatingB As Double, WinPeakRatingC As Double, OpsPlnWinRatingA As Double, OpsPlnWinRatingB As Double, OpsPlnWinRatingC As Double    'added 10/2023
-    Dim SprRatingA As Double, SprRatingB As Double, SprRatingC As Double, SumRatingA As Double, SumRatingB As Double, SumRatingC As Double, FallRatingA As Double, FallRatingB As Double, FallRatingC As Double
+    Dim WinPeakRatingA As Double, WinPeakRatingB As Double, WinPeakRatingC As Double, OpsPlnWinRatingA As Double, OpsPlnWinRatingB As Double, OpsPlnWinRatingC As Double    'added 10/2023 BU
+    Dim SprRatingA As Double, SprRatingB As Double, SprRatingC As Double, SumRatingA As Double, SumRatingB As Double, SumRatingC As Double, FallRatingA As Double, FallRatingB As Double, FallRatingC As Double    'added 10/2023 BU
     tempC = (tempF - 32) * 5 / 9
     tempC_A = 94
     tempC_B = 100
@@ -460,21 +462,19 @@ Public Function CalculateSectionRatings(Verbose As Boolean) As String
 		bundleFactor = 1
 		spaceFactor = 1
 		If Left(condName, 1) = "B" Or Left(condName, 2) = "TB" Then ' Bundled..must increase the rating based on spacing
-			'Rounding on the conductor diameter is needed to prevent a derate due to 8" spacings being used in some parts of the system inside the substation. For example,
-			'1272 ACSR has a diameter of 1.345". 6^1.345=8.07 and would cause a 10% derate. If this is rounded to the nearest whole number the result becomes 8 and no derate is required.
+			'Rounding on the conductor diameter is needed to prevent a derate due to 8" spacers being used in some parts of the system inside the substation. For example,
+			'1272 ACSR has a diameter of 1.345". 6*1.345=8.07 and would cause a 10% derate. If this is rounded to the nearest whole number the result becomes 8 and no derate is required.
 			'We don't want to derate it because of a 0.07" difference. Rob and Brian 8/18/2022
 			If Not IsEmpty(BundledSpacing) Then
 				If BundledSpacing < Round(6 * diam_in, 0) Then
 					spaceFactor = 0.9
-					If BundledSpacing < Round(3 * diam_in, 0) Then
+					If BundledSpacing < Round(3 * diam_in, 0) Then _
 						spaceFactor = 0.75
-					End If
 				End If
 			End If
 			bundleFactor = 2
-			If Left(condName, 2) = "TB" Then
+			If Left(condName, 2) = "TB" Then _
 				bundleFactor = 3
-			End If
 		End If
 
 		RatingA = RatingA * bundleFactor * spaceFactor
@@ -502,7 +502,7 @@ Public Function CalculateSectionRatings(Verbose As Boolean) As String
 		Dim isTwoWinding As String
 		isTwoWinding = ""
 		If tempF = 500 Then
-			isTwoWinding = "Amp_" ' Need to add this little string to ensure proper field is used - TwoWindingsSections is slightly different from BranchSections
+			isTwoWinding = "Amp_" ' Need to add this little string to ensure proper field is used - TwoWindingsSecitons is slightly different from BranchSections
 		End If
 		
 		CalculateSectionRatings = isTwoWinding & "rate_A = " & Round(RatingA, 2) & ", " & _
