@@ -121,7 +121,7 @@ Public Sub CalculateAllRatings() 'Recalc Ratings Button
                     SQL = "UPDATE TwoWindingsSections SET Amp_rate_A = """", Amp_rate_B = """", Amp_rate_C = """", Amp_rate_A_win = """", Amp_rate_B_win = """", Amp_rate_C_win = """"," _ 
 					& "Amp_rate_A_WinPeak = """", Amp_rate_B_WinPeak = """", Amp_rate_C_WinPeak = """", Amp_rate_A_OpsPlnWin = """", Amp_rate_B_OpsPlnWin = """", Amp_rate_C_OpsPlnWin = """"," _
                     & "Amp_rate_A_Spr = """", Amp_rate_B_Spr = """", Amp_rate_C_Spr = """", Amp_rate_A_Sum = """", Amp_rate_B_Sum = """", Amp_rate_C_Sum = """"," _
-					& "Amp_rate_A_Fall = """", Amp_rate_B_Fall = """", Amp_rate_C_Fall = """" WHERE section_id = " & TwoSectionID
+					& "Amp_rate_A_Fall = """", Amp_rate_B_Fall = """", Amp_rate_C_Fall = """" WHERE section_id = " & TwoWSectionID
 
                     DoCmd.RunSQL SQL
                 End If
