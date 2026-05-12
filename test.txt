@@ -121,17 +121,17 @@ Public Sub CalculateAllImpedancesAndRatings()
             Bus1NomVolt = XFMRBusesQuery.Fields("Bus1_base_kV").Value
             Bus2NomVolt = XFMRBusesQuery.Fields("Bus2_base_kV").Value
 
-            If CalcType = "Estimate" And Not IsNull(XFMRRateA) Then 'if at least need the size/rateA to estimate XFMR R and X.
-                XFMR_R = Round(DLookup("[Rpu]", "EstimateTransformerLosses", "'Size_MVA = " & XFMRBusesQuery.Fields("RateA")), 6)
-                XFMR_X = Round(DLookup("[Xpu]", "EstimateTransformerLosses", "'Size_MVA = " & XFMRBusesQuery.Fields("RateA")), 6)
+            If CalcType = "Estimate" And Not IsNull(XFMRRateA) Then 'I at least need the size/rateA to estimate XFMR R and X.
+                XFMR_R = Round(DLookup("[Rpu]", "EstimateTransformerLosses", "Size_MVA = " & XFMRBusesQuery.Fields("RateA")), 6)
+                XFMR_X = Round(DLookup("[Xpu]", "EstimateTransformerLosses", "Size_MVA = " & XFMRBusesQuery.Fields("RateA")), 6)
 
-                'If IsNull(XFMR_R) Or IsNull(XFMR_X) Then 'If the size could not be found in the EstimateTransformersLosses table use a default impedance
-                'Not using and Estimate calculation right now due to low R values causing square root of a negative number. Using fixed default in EstimateTransformerLosses table.
+                If IsNull(XFMR_R) Or IsNull(XFMR_X) Then  'If the size could not be found in the EstimateTransformerLosses table use a default impedance
+                'Not using and Estimate calculation right now due to low R values causing squart root of a negative number. Using fixed default in EstimateTransformerLosses table.
                 'EstOA_Rating = XFMRRateA * 0.7 'general rule of thumb for estimating the OA Rating
                 'EstXpu = Round(7.8 / EstOA_Rating, 10) 'estimating Zpu or really the X since R is so small in an xfmr.
                 'EstRpu = Sqr((7.8 ^ 2) / (EstOA_Rating ^ 2) - (EstXpu ^ 2)) 'back calculate R given an estimation of X
-                XFMR_R = Round(DLookup("[Rpu]", "EstimateTransformerLosses", "'Size_MVA = 22.4"), 6) 'most common distribution transformer
-                XFMR_X = Round(DLookup("[Xpu]", "EstimateTransformerLosses", "'Size_MVA = 22.4"), 6) 'most common distribution transformer
+                XFMR_R = Round(DLookup("[Rpu]", "EstimateTransformerLosses", "Size_MVA = 22.4 "), 6) 'most common distribution transformer
+                XFMR_X = Round(DLookup("[Xpu]", "EstimateTransformerLosses", "Size_MVA = 22.4 "), 6) 'most common distribution transformer
                 DoCmd.RunSQL "UPDATE TwoWindings SET R = " & XFMR_R & ", X = " & XFMR_X & " WHERE (two_winding_id = " & TwoWindingID & ");" 'place new values in table
 				
                 Else 'a size was found in the EstimateTransformerLosses table so use what it found
