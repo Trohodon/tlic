@@ -1,7 +1,9 @@
+Option Compare Database
+
 Public Sub CalculateAllImpedancesAndRatings()
     Dim db As DAO.Database 'Database handle
     Dim Sections As DAO.Recordset 'Recordset object for Section Table
-    Dim NotFound As String 'List of sections not found
+    Dim NotFound As String ' List of sections not found
     Dim SomeNotFound As Boolean 'True if at least one section not found
     Dim Success As Boolean 'Return value from CalculateSectionImpedances
     Success = False
@@ -75,85 +77,87 @@ Public Sub CalculateAllImpedancesAndRatings()
         End If
 		
 		    'Now calculate Transformer impedances if the 'Estimate' or 'Calculate' option is chosen
-    Dim XFMRs As DAO.Recordset 'Recordset object for TwoWindings Table
-    Dim XFMRLosses As DAO.Recordset 'Recordset object for EstimateTransformerLosses Table
-    Dim XFMRBusesQuery As DAO.Recordset 'Recordset object for TwoWindingsWithBusses Query
-    Dim TwoWindingID As Integer
+        Dim XFMRs As DAO.Recordset 'Recordset object for TwoWindings Table
+        Dim XFMRLosses As DAO.Recordset 'Recordset object for EstimateTransformerLosses Table
+        Dim XFMRBusesQuery As DAO.Recordset 'Recordset object for TwoWindingsWithBusses Query
+        Dim TwoWindingID As Integer
 
-    'need to use variant or empty records will produce a type mismatch error
-    Dim CalcType As Variant
-    Dim Z0_CalcType As Variant
-    Dim PowerBase As Variant 'variable for the mva_base column
-    Dim XFMRImped As Variant 'variable for the Z% column
-    Dim XFMRRateA As Variant
-    Dim FL_Cop_Loss As Variant
-    Dim XFMR_R As Variant
-    Dim XFMR_X As Variant
-    Dim XFMR_NomVolt As Variant
-    Dim ZpuOld As Variant 'only needed as a placeholder for impedance calculation
-    Dim Bus1NomVolt As Variant
-    Dim Bus2NomVolt As Variant
+        'need to use variant or empty records will produce a type mismatch error
+        Dim CalcType As Variant
+        Dim Z0_CalcType As Variant
+        Dim PowerBase As Variant 'variable for the mva_base column
+        Dim XFMRImped As Variant 'variable for the Z% column
+        Dim XFMRRateA As Variant
+        Dim FL_Cop_Loss As Variant
+        Dim XFMR_R As Variant
+        Dim XFMR_X As Variant
+        Dim XFMR_NomVolt As Variant
+        Dim ZpuOld As Variant 'only needed as a placeholder for impedance calculation
+        Dim Bus1NomVolt As Variant
+        Dim Bus2NomVolt As Variant
 
-    'Dim BusID As Variant
-    'Dim EstOA_Rating As Double
-    'Dim EstXpu As Double 'estimating Zpu or really the X since R is so small in an xfmr.
-    'Dim EstRpu As Double
-    'Dim EstLosses As Variant 'estimating losses so a calculation of R and X can happen
+        'Dim BusID As Variant
+        'Dim EstOA_Rating As Double
+        'Dim EstXpu As Double 'estimating Zpu or really the X since R is so small in an xfmr.
+        'Dim EstRpu As Double
+        'Dim EstLosses As Variant 'estimating losses so a calculation of R and X can happen
 
-    DoCmd.SetWarnings False
+        DoCmd.SetWarnings False
 
-    Set XFMRs = db.OpenRecordset("TwoWindings") 'Open TwoWindings Table
-    Set XFMRBusesQuery = db.OpenRecordset("TwoWindingsWithBusses") 'Open TwoWindingsWithBusses Query
-    Set XFMRLosses = db.OpenRecordset("EstimateTransformerLosses", dbOpenDynaset, dbSeeChanges) 'Open EstimateTransformerLosses Query
-    XFMRBusesQuery.MoveFirst
+        Set XFMRs = db.OpenRecordset("TwoWindings") 'Open TwoWindings Table
+        Set XFMRBusesQuery = db.OpenRecordset("TwoWindingsWithBusses") 'Open TwoWindingsWithBusses Query
+        Set XFMRLosses = db.OpenRecordset("EstimateTransformerLosses", dbOpenDynaset, dbSeeChanges) 'Open EstimateTransformerLosses Query
+        XFMRBusesQuery.MoveFirst
 
-    While Not XFMRBusesQuery.EOF 'Do until the end of the table:
-        TwoWindingID = XFMRBusesQuery.Fields("two_winding_id").Value 'Get the section id from the current row
-        CalcType = XFMRBusesQuery.Fields("R_X_CalcType").Value
-        Z0_CalcType = XFMRBusesQuery.Fields("ZeroSeq_CalcType").Value
-        PowerBase = XFMRBusesQuery.Fields("mva_base").Value 'assuming the mva_base is the OA rating of the xfmr
-        XFMRImped = XFMRBusesQuery.Fields("Z%").Value
-        FL_Cop_Loss = XFMRBusesQuery.Fields("FL_Copper_Losses").Value
-        XFMRRateA = XFMRBusesQuery.Fields("RateA").Value
-        XFMR_NomVolt = XFMRBusesQuery.Fields("WindingTwoNomVolt").Value
-        Bus1NomVolt = XFMRBusesQuery.Fields("Bus1_base_kV").Value
-        Bus2NomVolt = XFMRBusesQuery.Fields("Bus2_base_kV").Value
+        While Not XFMRBusesQuery.EOF 'Do until the end of the table:
+            TwoWindingID = XFMRBusesQuery.Fields("two_winding_id").Value 'Get the section id from the current row
+            CalcType = XFMRBusesQuery.Fields("R_X_CalcType").Value
+            Z0_CalcType = XFMRBusesQuery.Fields("ZeroSeq_CalcType").Value
+            PowerBase = XFMRBusesQuery.Fields("mva_base").Value 'assuming the mva_base is the OA rating of the xfmr
+            XFMRImped = XFMRBusesQuery.Fields("Z%").Value
+            FL_Cop_Loss = XFMRBusesQuery.Fields("FL_Copper_Losses").Value
+            XFMRRateA = XFMRBusesQuery.Fields("RateA").Value
+            XFMR_NomVolt = XFMRBusesQuery.Fields("WindingTwoNomVolt").Value
+            Bus1NomVolt = XFMRBusesQuery.Fields("Bus1_base_kV").Value
+            Bus2NomVolt = XFMRBusesQuery.Fields("Bus2_base_kV").Value
 
-        If CalcType = "Estimate" And Not IsNull(XFMRRateA) Then 'if at least need the size/rateA to estimate XFMR R and X.
-            XFMR_R = Round(DLookup("[Rpu]", "EstimateTransformerLosses", "'Size_MVA = " & XFMRBusesQuery.Fields("RateA")), 6)
-            XFMR_X = Round(DLookup("[Xpu]", "EstimateTransformerLosses", "'Size_MVA = " & XFMRBusesQuery.Fields("RateA")), 6)
+            If CalcType = "Estimate" And Not IsNull(XFMRRateA) Then 'if at least need the size/rateA to estimate XFMR R and X.
+                XFMR_R = Round(DLookup("[Rpu]", "EstimateTransformerLosses", "'Size_MVA = " & XFMRBusesQuery.Fields("RateA")), 6)
+                XFMR_X = Round(DLookup("[Xpu]", "EstimateTransformerLosses", "'Size_MVA = " & XFMRBusesQuery.Fields("RateA")), 6)
 
-            'If IsNull(XFMR_R) Or IsNull(XFMR_X) Then 'If the size could not be found in the EstimateTransformersLosses table use a default impedance
-            'Not using and Estimate calculation right now due to low R values causing square root of a negative number. Using fixed default in EstimateTransformerLosses table.
-            'EstOA_Rating = XFMRRateA * 0.7 'general rule of thumb for estimating the OA Rating
-            'EstXpu = Round(7.8 / EstOA_Rating, 10) 'estimating Zpu or really the X since R is so small in an xfmr.
-            'EstRpu = Sqr((7.8 ^ 2) / (EstOA_Rating ^ 2) - (EstXpu ^ 2)) 'back calculate R given an estimation of X
-            XFMR_R = Round(DLookup("[Rpu]", "EstimateTransformerLosses", "'Size_MVA = 22.4"), 6) 'most common distribution transformer
-            XFMR_X = Round(DLookup("[Xpu]", "EstimateTransformerLosses", "'Size_MVA = 22.4"), 6) 'most common distribution transformer
-            DoCmd.RunSQL "UPDATE TwoWindings SET R = " & XFMR_R & ", X = " & XFMR_X & " WHERE (two_winding_id = " & TwoWindingID & ");" 'place new values in table
-            'a size was found in the EstimateTransformerLosses table so use what it found
-            'Else
-            DoCmd.RunSQL "UPDATE TwoWindings SET R = " & XFMR_R & ", X = " & XFMR_X & " WHERE (two_winding_id = " & TwoWindingID & ");" 'place new values in table
-            'End If
+                'If IsNull(XFMR_R) Or IsNull(XFMR_X) Then 'If the size could not be found in the EstimateTransformersLosses table use a default impedance
+                'Not using and Estimate calculation right now due to low R values causing square root of a negative number. Using fixed default in EstimateTransformerLosses table.
+                'EstOA_Rating = XFMRRateA * 0.7 'general rule of thumb for estimating the OA Rating
+                'EstXpu = Round(7.8 / EstOA_Rating, 10) 'estimating Zpu or really the X since R is so small in an xfmr.
+                'EstRpu = Sqr((7.8 ^ 2) / (EstOA_Rating ^ 2) - (EstXpu ^ 2)) 'back calculate R given an estimation of X
+                XFMR_R = Round(DLookup("[Rpu]", "EstimateTransformerLosses", "'Size_MVA = 22.4"), 6) 'most common distribution transformer
+                XFMR_X = Round(DLookup("[Xpu]", "EstimateTransformerLosses", "'Size_MVA = 22.4"), 6) 'most common distribution transformer
+                DoCmd.RunSQL "UPDATE TwoWindings SET R = " & XFMR_R & ", X = " & XFMR_X & " WHERE (two_winding_id = " & TwoWindingID & ");" 'place new values in table
+                'a size was found in the EstimateTransformerLosses table so use what it found
+                'Else
+                DoCmd.RunSQL "UPDATE TwoWindings SET R = " & XFMR_R & ", X = " & XFMR_X & " WHERE (two_winding_id = " & TwoWindingID & ");" 'place new values in table
+                'End If
 
-        ElseIf CalcType = "Calculated" And Not IsNull(PowerBase) And Not IsNull(FL_Cop_Loss) And Not IsNull(XFMRImped) And Not IsNull(XFMR_NomVolt) Then 'need all four to calculate R and X
-            If Bus2NomVolt > Bus1NomVolt Then
-                Bus1NomVolt = Bus2NomVolt 'We need the System High Side bus voltage per the formula so this makes sure we get it.
-            End If
+            ElseIf CalcType = "Calculated" And Not IsNull(PowerBase) And Not IsNull(FL_Cop_Loss) And Not IsNull(XFMRImped) And Not IsNull(XFMR_NomVolt) Then 'need all four to calculate R and X
+                If Bus2NomVolt > Bus1NomVolt Then
+                    Bus1NomVolt = Bus2NomVolt 'We need the System High Side bus voltage per the formula so this makes sure we get it.
+                End If
 
-            XFMR_R = Round((FL_Cop_Loss / 1000) / (PowerBase ^ 2), 6)
-            ZpuOld = Round((XFMRImped / 100) / PowerBase * 100, 6) 'this assumes the system base is always 100 MVA and is hard coded as shown
-            XFMR_X = Round(ZpuOld * (XFMR_NomVolt ^ 2 / Bus1NomVolt ^ 2), 7) 'using the change of base formula here.
+                XFMR_R = Round((FL_Cop_Loss / 1000) / (PowerBase ^ 2), 6)
+                ZpuOld = Round((XFMRImped / 100) / PowerBase * 100, 6) 'this assumes the system base is always 100 MVA and is hard coded as shown
+                XFMR_X = Round(ZpuOld * (XFMR_NomVolt ^ 2 / Bus1NomVolt ^ 2), 7) 'using the change of base formula here.
 
-            DoCmd.RunSQL "UPDATE TwoWindings SET R = " & XFMR_R & ", X = " & XFMR_X & " WHERE (two_winding_id = " & TwoWindingID & ");" 'place new values in table
+                DoCmd.RunSQL "UPDATE TwoWindings SET R = " & XFMR_R & ", X = " & XFMR_X & " WHERE (two_winding_id = " & TwoWindingID & ");" 'place new values in table
 
-        ElseIf CalcType = "Override" Then 'get override value so it can be used for zero sequence as well
-            XFMR_R = XFMRBusesQuery.Fields("R").Value
-            XFMR_X = XFMRBusesQuery.Fields("X").Value
+            ElseIf CalcType = "Override" Then 'get override value so it can be used for zero sequence as well
+                XFMR_R = XFMRBusesQuery.Fields("R").Value
+                XFMR_X = XFMRBusesQuery.Fields("X").Value
 
-        Else
+            Else
+
             'if the CalcType field is left blank or proper cells were not filled in then make the field blank
-            DoCmd.RunSQL "UPDATE TwoWindings SET R = Null, X = Null WHERE (two_winding_id = " & TwoWindingID & ");" 'set R and X to blank if the R_X CalcType field is left blank
+            
+			DoCmd.RunSQL "UPDATE TwoWindings SET R = Null, X = Null WHERE (two_winding_id = " & TwoWindingID & ");" 'set R and X to blank if the R_X CalcType field is left blank
 
             XFMR_R = XFMRBusesQuery.Fields("R").Value 'set variable to null so zero seq can be set to blank as well
             XFMR_X = XFMRBusesQuery.Fields("X").Value 'set variable to null so zero seq can be set to blank as well
@@ -189,11 +193,11 @@ Public Sub CalculateAllImpedancesAndRatings()
     DoCmd.SetWarnings True 'turn warnings back on
 	
 	'now update the 'TimeStamp' table so the time stamp text box on the ModelBuildForm is updated below each button.
-DoCmd.SetWarnings False
-DoCmd.RunSQL "UPDATE TimeStamp1 SET TimeStamp1.Recalc_Impedances = " & Chr(39) & Format(Now(), "MM/dd/yyyy  hh:mm AM/PM") & Chr(39) & " WHERE TimeStamp_ID = " & 1 & ";"
-DoCmd.RunSQL "UPDATE TimeStamp1 SET TimeStamp1.Recalc_Impedances = " & Chr(39) & Format(Now(), "MM/dd/yyyy  hh:mm AM/PM") & Chr(39) & " WHERE TimeStamp_ID = " & 1 & ";"
-DoCmd.RunSQL "UPDATE TimeStamp1 SET TimeStamp1.Recalc_Ratings = " & Chr(39) & Format(Now(), "MM/dd/yyyy  hh:mm AM/PM") & Chr(39) & " WHERE TimeStamp_ID = " & 1 & ";"
-DoCmd.SetWarnings True
+    DoCmd.SetWarnings False
+    DoCmd.RunSQL "UPDATE TimeStamp1 SET TimeStamp1.Recalc_Impedances = " & Chr(39) & Format(Now(), "MM/dd/yyyy  hh:mm AM/PM") & Chr(39) & " WHERE TimeStamp_ID = " & 1 & ";"
+    DoCmd.RunSQL "UPDATE TimeStamp1 SET TimeStamp1.Recalc_Impedances = " & Chr(39) & Format(Now(), "MM/dd/yyyy  hh:mm AM/PM") & Chr(39) & " WHERE TimeStamp_ID = " & 1 & ";"
+    DoCmd.RunSQL "UPDATE TimeStamp1 SET TimeStamp1.Recalc_Ratings = " & Chr(39) & Format(Now(), "MM/dd/yyyy  hh:mm AM/PM") & Chr(39) & " WHERE TimeStamp_ID = " & 1 & ";"
+    DoCmd.SetWarnings True
 
 End If
 
