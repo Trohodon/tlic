@@ -359,8 +359,8 @@ Public Function WriteOutFullModel(FilePath As String, baseYear As Double, Snapsh
         Dim MW As Double              'Final MW value after overall 'case' scaling
         Dim MW0 As Double             'Initial MW value before overall 'case' scaling
         Dim MVAR As Double
-        Dim OverP As Double
-        Dim Wholesale As Double
+        Dim QoverP As Double
+        Dim Pwholesale As Double
         Dim P_non_native As Double    'non native load is load that is not included in CorpForecast. Ex. Orangeburg Load points. 2024-02-06 BU
         Dim Pretail As Double
         Dim ID As Long
@@ -382,8 +382,8 @@ Public Function WriteOutFullModel(FilePath As String, baseYear As Double, Snapsh
 
                 If Loads.Fields("start_date") <= snapshotDate And Loads.Fields("end_date") >= snapshotDate Then
 
-                    If Left(Loads.Fields("pti_load").Value, 1) <> "P" Or (Left(Loads.Fields("pti_load").Value, 1) = "P" And incSolar And Not IsNull(Loads.Fields("Queue").Value) And _
-                        Loads.Fields("Queue").Value <= ignoreAfterQueueNum And (Loads.Fields("signedIA") Or incNoIA And incERIS)) Then '2018-12-31 JWR - Got rid of this - all solar is model with ma
+                    ' If Left(Loads.Fields("pti_load").Value, 1) <> "P" Or (Left(Loads.Fields("pti_load").Value, 1) = "P" And incSolar And Not IsNull(Loads.Fields("Queue").Value) And _
+                        ' Loads.Fields("Queue").Value <= ignoreAfterQueueNum And (Loads.Fields("signedIA") Or incNoIA And incERIS)) Then '2018-12-31 JWR - Got rid of this - all solar is model with machines, not negative loads, now.
 
                         ID = Loads.Fields("load_point_id").Value
 
@@ -417,10 +417,9 @@ Public Function WriteOutFullModel(FilePath As String, baseYear As Double, Snapsh
                                         QoverP = 0
 
                                         If MW = 0 Then    'you can't divide by zero. If MW=0 then assign a default PF of 0.98
-                                            OverP = 0.20305    'estimate PF ~= .98
-                                        Else
-                                            'otherwise get a Q/P so the correct MVAR value can be calculated later
-                                            OverP = MVAR / MW
+                                            QoverP = 0.20305    'estimate PF = .98
+                                        Else 'otherwise get a Q/P so the correct MVAR value can be calculated later
+                                            QoverP = MVAR / MW
                                         End If
 
                                         Break = True
@@ -458,7 +457,7 @@ Public Function WriteOutFullModel(FilePath As String, baseYear As Double, Snapsh
                         Loop
 
                         'check to see if MVAR is much higher than MW for each load point.
-                        'OverP = 0     'this is in the wrong place. Moved it up  BKU 2019-09-09
+                        'QoverP = 0#     'this is in the wrong place. Moved it up  BKU 2019-09-09
                         If MW > 0# Or MW < 0# Then
                             'QoverP = MVAR / MW 'this is in the wrong place. Moved it up BKU 2019-09-09
                             If QoverP > 10 Then
@@ -515,9 +514,9 @@ Public Function WriteOutFullModel(FilePath As String, baseYear As Double, Snapsh
                                 LoadForecast.MoveNext
                             Wend
 
-                            If MW value is negative, send a message and set to zero
+                            ' If MW value is negative, send a message and set to zero
                             If MW < 0# Then
-                                MsgBox "The MW value is " & MW & ", which is obviously negative for load point ID " & ID & ". We're not allowing that at this time. Setting value to zero" 'Removed for MU
+                                'MsgBox "The MW value is " & MW & ", which is obviously negative for load point ID " & ID & ". We're not allowing that at this time. Setting value to zero" 'Removed for MUltiple Models to prevent Pop-up.cMay reinstate as logged errror AU 4/13/2020
                                 MW = 0
                             ElseIf MW - historyMW > 300 Then
                                 MsgBox "The MW value is " & MW & ", which is probably way too much for load point ID " & ID & ". We're not allowing that at this time. Capping to pre-forecast value of " & _
@@ -526,7 +525,7 @@ Public Function WriteOutFullModel(FilePath As String, baseYear As Double, Snapsh
                             End If
 
                             'Finally assign a MVAR value that has a constant PQ ratio of original data/default or a corrected MVAR value if Q/P was high.
-                            MVAR = OverP * MW
+                            MVAR = QoverP * MW
 
                             If Loads.Fields("NativeLoad").Value = False Then     'non native load is load that is not included in Corp Forecast. Example is Orangeburg Load points. 2024-02-06 BU
                                 P_non_native = P_non_native + MW
@@ -632,17 +631,16 @@ Public Function WriteOutFullModel(FilePath As String, baseYear As Double, Snapsh
 
                                 If Left(Loads.Fields("pti_load").Value, 1) <> "P" Then
                                     Pretail = Pretail + MW
-                                ElseIf SnapshotSeason = "S" Or SnapshotSeason = "W" Then
+                                ElseIf SnapShotSeason = "S" Or SnapShotSeason = "W" Then
                                     MW = MW * percentOfSolar / 100
 
                                 End If
 
                                 SQL = "UPDATE Loads SET MW = " & Format(MW, "0.00") & ", MVAR = " & Format(MVAR, "0.00") & " WHERE load_point_id = " & ID & ";"
                                 DoCmd.RunSQL SQL
-                            End If
+                           ' End If
                         End If
                     End If
-                End If
 
             Loads.MoveNext
         Wend
@@ -665,13 +663,11 @@ Public Function WriteOutFullModel(FilePath As String, baseYear As Double, Snapsh
 
                 If Dynamics And Loads.Fields("pti_bus") < 740 And Loads.Fields("pti_bus") > 722 Then
                     VCS1SS = VCS1SS + MW0
-                End If
 
                 bus = Loads.Fields("pti_bus")
                 If BusInSubsystem(bus) Then
                     If combineBuses And Not Loads.Fields("parent_bus_number") = 0 Then
                         bus = Loads.Fields("parent_bus_number")
-                    End If
                 End If
 
                 If useRegionalNumbering Then
@@ -793,7 +789,7 @@ Public Function WriteOutFullModel(FilePath As String, baseYear As Double, Snapsh
                             If combineBuses And Not Generators.Fields("parent_bus_number_gen") = 0 Then
                                 GenBus = Generators.Fields("parent_bus_number_gen")
                             End If
-                            If useRegionalNumbering Then
+                            If useRegionalNumbering Then _
                                 GenBus = GenBus + busOffset
                             End If
 
@@ -1402,11 +1398,11 @@ While Not Buses.EOF
                                 Line = Line & Buses.Fields("area_number") & " "
                             End If
                             If ZoneConfig = 1 Then
-                                Line = Line & (ZoneOffset + Buses.Fields("zone_loc")) & ","
+                                Line = Line & (ZoneOffset + Buses.Fields("zone_loc")) & " "
                             ElseIf ZoneConfig = 2 Then
-                                Line = Line & (ZoneOffset + Buses.Fields("zone_city")) & ","
+                                Line = Line & (ZoneOffset + Buses.Fields("zone_city")) & " "
                             Else
-                                Line = Line & (ZoneOffset + Buses.Fields("zone_load")) & ","
+                                Line = Line & (ZoneOffset + Buses.Fields("zone_load")) & " "
                             End If
                             If useRegionalNumbering Then
                                 Line = Line & RegionalArea & ","
@@ -1461,28 +1457,28 @@ End If '^If incBusData Then
 '    Print #File, "psspy.bus_data_3(372835, [1, 343, 1378, 361], [230, 1.0, avgBusAngle, 1.05, 0.95, 1.1, 0.95], '6VCS NI2 (GSU)') # VCS UNIT 2 GSU High Side"
 'End If
 
-Print #File, ")"
+Print #File, "}"
 
 If incShuntData And Not projectsSubset Then
     'print fixed shunts
-    Print #File, vbCrLf & commChar & "==================== FIXED SHUNT DATA ===================="
+    Print #File, vbCrLf & commChar & "=================== FIXED SHUNT DATA ========================"
     Print #File, PrintFixedShunts(snapshotDate, maxBus, combineBuses, writePython, commChar, busOffset, useRegionalNumbering)
+    Print #File, "}"
 End If ' ^If incShuntData And Not projectsSubset Then
-
-Print #File, ")"
+	
 If incShuntData Then
     'print switched shunts
-    Print #File, vbCrLf & commChar & "==================== SWITCHED SHUNT DATA ===================="
+    Print #File, vbCrLf & commChar & "================= SWITCHED SHUNT DATA ========================="
     Print #File, PrintSwitchedShunts(snapshotDate, maxBus, combineBuses, writePython, commChar, busOffset, useRegionalNumbering, projectsSubset, projectsStartDate, projectsEndDate)
 
-    Print #File, ")"
+    Print #File, "}"
 End If ' ^If incShuntData Then
 
 If incBranchData Then
     'print branch data
 
     Print #File, ""
-    Print #File, commChar & "==================== BRANCH DATA ===================="
+    Print #File, commChar & "===================== BRANCH DATA ============================="
 
     ' Added LineMVA:3 for Relay Loading, LineMVA:4 for Meter Saturation 5/20/20
     Print #File, "Branch (BusNum,BusNum:1,LineCircuit, LineR, LineX, LineC, LineAMVA, LineAMVA:1,LineAMVA:2,LineLength,ObjectMemo,LineStatus,BranchDeviceType,LineAMVA:3,LineAMVA:4)" & vbCrLf & "{"
@@ -1499,7 +1495,7 @@ If incBranchData Then
         If Not incSolar Or Not QueuedProjects.Fields("include") Or QueuedProjects.Fields("QueueNum") > ignoreAfterQueueNum Or QueuedProjects.Fields("StartDate") > snapshotDate Or _
             QueuedProjects.Fields("EndDate") <= snapshotDate Or (Not incNoIA And Not QueuedProjects.Fields("SignedIA")) Then
 
-        If queueNotOutput(0) = 0 Then
+        If queueNotOutput(0) = 0 Then _
             queueNotOutput(UBound(queueNotOutput)) = QueuedProjects.Fields("QueueNum")
 
         Dim a As Integer
@@ -1551,7 +1547,7 @@ If projectsSubset Then ' Need to run through branches to purge those necessary
 
             If Branches.Fields("include") And ((Dynamics And Bus1 < 740 And Bus1 > 722) Or Bus1 >= 740 Or Bus1 <= 722) And ((Dynamics And Bus2 < 740 And Bus2 > 722) Or Bus2 >= 740 Or Bus2 <=
             If Branches.Fields("ignore_dates") Or ((Branches.Fields("start_date") <= snapshotDate And (Branches.Fields("end_date") > snapshotDate Or _
-                (projectsSubset And Branches.Fields("end_date") > projectsStartDate))) Then
+                (projectsSubset And Branches.Fields("end_date") > projectsStartDate)))) Then
             If BusInSubsystem(Bus1) And BusInSubsystem(Bus2) Then
                 If (Bus1 < maxBus Or Branches.Fields("external_1")) And (Bus2 < maxBus Or Branches.Fields("external_2")) Then
                     Dim writeOut As Boolean
@@ -1628,7 +1624,7 @@ If projectsSubset Then ' Need to run through branches to purge those necessary
             End If ' ^If (bus1 < MaxBus Or Branches.Fields("external_1")) And (bus2 < MaxBus Or Branches.Fields("external_2")) Then
         End If ' ^If BusInSubsystem(bus1) And BusInSubsystem(bus2) Then
     End If ' ^If Branches.Fields("ignore_dates") Or ((Branches.Fields("start_date") <= snapshotDate And Branches.Fields("end_date") > snapshotDate)) Then
-End If ' ^If Branches.Fields("include") And ((Dynamics And bus1 < 740 And bus1 > 719) Or bus1 >= 740 Or bus1 <= 719) And ((Dynamics And bus2 < 740 And bus2 > 719) Or bus2 >= 740
+End If ' ^If Branches.Fields("include") And ((Dynamics And bus1 < 740 And bus1 > 719) Or bus1 >= 740 Or bus1 <= 719) And ((Dynamics And bus2 < 740 And bus2 > 719) Or bus2 >= 740 Or bus2 <= 719) Then
 End If ' ^If printBranch Then
 
 Branches.MoveNext
@@ -1639,7 +1635,7 @@ Dim branchBreakersFile As Integer
 If ShortCircuit Then
     'create Line Breakers file:
     branchBreakersFile = FreeFile
-    Open FilePath & "branchBreakers.csv" For Output As #branchBreakersFile
+    Open FilePath & "_branchBreakers.csv" For Output As #branchBreakersFile
     Print #branchBreakersFile, "cktNum, Breaker), fromSub, fromBus, toBus, id, desc, line_name"
 End If
 
@@ -1779,7 +1775,7 @@ While Not Branches.EOF
                     End If ' ^If (bus1 < MaxBus Or Branches.Fields("external_1")) And (bus2 < MaxBus Or Branches.Fields("external_2")) Then
                 End If ' ^If BusInSubsystem(bus1) And BusInSubsystem(bus2) Then
             End If ' ^If Branches.Fields("ignore_dates") Or ((Branches.Fields("start_date") <= snapshotDate And Branches.Fields("end_date") > snapshotDate)) Then
-        End If ' ^If Branches.Fields("include") And ((Dynamics And bus1 < 740 And bus1 > 719) Or bus1 >= 740 Or bus1 <= 719) And ((Dynamics And bus2 < 740 And bus2 > 719) Or bus2 >= 740 Or
+        End If ' ^If Branches.Fields("include") And ((Dynamics And bus1 < 740 And bus1 > 719) Or bus1 >= 740 Or bus1 <= 719) And ((Dynamics And bus2 < 740 And bus2 > 719) Or bus2 >= 740 Or bus2 <= 719) Then
     End If ' ^If printBranch Then
 
     Branches.MoveNext
@@ -1811,7 +1807,7 @@ Call TransformerData(FilePath, baseYear, SnapshotIndex, useRegionalNumbering, bu
 If incLoadData And Not projectsSubset Then
     'print loads
     Print #File, ""
-    Print #File, commChar & "==================== LOAD DATA ========================="
+    Print #File, commChar & "===================== LOAD DATA ========================="
     If writePython Then 'Added If Else Statement for PWD Load Aux file writer mod AU 12 2
         Print #File, loadLine
     Else
