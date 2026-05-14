@@ -272,7 +272,8 @@ Public Function WriteOutFullModel(FilePath As String, baseYear As Double, Snapsh
         'Print #File, "" & Chr(34) & "Bus" & Chr(34) & " " & Chr(34) & " " & Chr(34) & "AND" & Chr(34) & "," & Chr(34) & "1" & Chr(34) & "," & Chr(34) & "NO" & Chr(34) & "," & Chr(34) & "YES" & Chr(34)
         'Print #File, "" & Chr(34) & "Branch" & Chr(34) & "," & Chr(34) & " " & Chr(34) & "AND" & Chr(34) & "," & Chr(34) & "1" & Chr(34) & "," & Chr(34) & "NO" & Chr(34) & "," & Chr(34) & "YES" & Chr(34)
         'Print #File, "" & Chr(34) & "Gen" & Chr(34) & "," & Chr(34) & " " & Chr(34) & "AND" & Chr(34) & "," & Chr(34) & "1" & Chr(34) & "," & Chr(34) & "NO" & Chr(34) & "," & Chr(34) & "YES" & Chr(34)
-        Print #File, "" & Chr(34) & "Load" & Chr(34) & "," & Chr(34) & " " & Chr(34) & "AND" & Chr(34) & "," & Chr(34) & "1" & Chr(34) & "," & Chr(34) & "NO" & Chr(34) & "," & Chr(34) & "YES" & Chr(34)
+        Print #File, Chr(34) & "Load" & Chr(34) & "," & Chr(34) & " " & Chr(34) & " AND " & Chr(34) & "," & Chr(34) & "1" & Chr(34) & "," & Chr(34) & "NO" & Chr(34) & "," & Chr(34) & "YES" & Chr(34)
+
         Print #File, "" & Chr(34) & "Bus" & Chr(34) & "," & Chr(34) & "SCEG" & Chr(34) & "," & Chr(34) & " " & Chr(34) & "AND" & Chr(34) & "," & Chr(34) & "1" & Chr(34) & "," & Chr(34) & "NO" & Chr(34) & "," & Chr(34) & "YES" & Chr(34)
         Print #File, "" & Chr(34) & "Branch" & Chr(34) & "," & Chr(34) & "SCEG" & Chr(34) & "," & Chr(34) & " " & Chr(34) & "AND" & Chr(34) & "," & Chr(34) & "1" & Chr(34) & "," & Chr(34) & "NO" & Chr(34) & "," & Chr(34) & "YES" & Chr(34)
         Print #File, "" & Chr(34) & "Gen" & Chr(34) & "," & Chr(34) & "SCEG" & Chr(34) & "," & Chr(34) & " " & Chr(34) & "AND" & Chr(34) & "," & Chr(34) & "1" & Chr(34) & "," & Chr(34) & "NO" & Chr(34) & "," & Chr(34) & "YES" & Chr(34)
@@ -286,9 +287,9 @@ Public Function WriteOutFullModel(FilePath As String, baseYear As Double, Snapsh
         & vbTab & Chr(60) & Chr(47) & "SUBDATA" & Chr(62)
 
         Print #File, Chr(34) & "Gen" & Chr(34) & " " & Chr(34) & "SCEG_FFP7" & Chr(34) & " " & Chr(34) & " AND " & Chr(34) & " " _
-            & "1" & " " & Chr(34) & "NO" & " " & Chr(34) & "" & Chr(34) & "YES" & Chr(34) & " " & Chr(34) & Chr(34) & vbCrLf _
-            & vbTab & Chr(60) & "SUBDATA Condition" & Chr(62) & vbCrLf & vbTab & "AreaName startswith " & Chr(34) & "SCEG" & Chr(34) & vbCrLf _
-            & vbTab & "BusName notcontains " & Chr(34) & "1FFP HY7" & Chr(34) & vbCrLf _
+            & "1" & " " & Chr(34) & "NO" & " " & Chr(34) & " " & Chr(34) & "YES" & Chr(34) & " " & Chr(34) & Chr(34) & vbCrLf _
+            & vbTab & Chr(60) & "SUBDATA Condition" & Chr(62) & vbCrLf & vbTab & " AreaName startswith " & Chr(34) & "SCEG" & Chr(34) & vbCrLf _
+            & vbTab & " BusName notcontains " & Chr(34) & "1FFP HY7" & Chr(34) & vbCrLf _
             & vbTab & Chr(60) & Chr(47) & "SUBDATA" & Chr(62)
 
         Print #File, "}"
@@ -453,6 +454,25 @@ Public Function WriteOutFullModel(FilePath As String, baseYear As Double, Snapsh
                                             QoverP = MVAR / MW
                                         End If
                                         Break = True
+										
+                                        Dim loadScale As Double
+                                        loadScale = 1
+
+                                        If Loads.Fields("Scalable").Value Then
+                                            If BaseSeason = "D" Then
+                                                loadScale = 0.43
+                                            ElseIf BaseSeason = "L" Then
+                                                loadScale = 0.35
+                                            ElseIf BaseSeason = "H" Then
+                                                loadScale = 0.8
+                                            End If
+                                        End If
+
+                                        MW = MW * loadScale
+
+                                        If loadScale < 1 And MVAR < 0 Then _
+                                            MVAR = MVAR * loadScale  ' I don't think it's a good idea to scale absolute value of MVAR down, thereby increasing MVAR, if MVAR is negative for lighter load periods - JWR
+										
                                     End If
                                     LoadHistory.MoveNext
                                 Wend
@@ -607,10 +627,21 @@ Public Function WriteOutFullModel(FilePath As String, baseYear As Double, Snapsh
 
                 loadLine = loadLine & ",_i,"
                 If Not Loads.Fields("Scalable") Then ' Non-conforming Loads.
-                    loadLine = loadLine & "0,"
-                    PWDloadLine = PWDloadLine & Chr(34) & "NO" & Chr(34) & " " 'Added for Load PWD AUX AU 12 2
+                loadLine = loadLine & "_i,"
+                PWDloadLine = PWDloadLine & Chr(34) & "YES" & Chr(34) & ","    ' Added for Load PWD AUX AU 12 2
+                End If
+
+                If Loads.Fields("Interruptible") Then    ' Interruptible loads.
+                    loadLine = loadLine & "1"
+                    PWDloadLine = PWDloadLine & Chr(34) & "YES" & Chr(34) & ","    ' Added for Load PWD AUX AU 12 2
                 Else
-                    loadLine = loadLine & "_i,"
+                    loadLine = loadLine & "_i"
+                    PWDloadLine = PWDloadLine & Chr(34) & "NO" & Chr(34) & ","    ' Added for Load PWD AUX AU 12 2
+                End If
+
+                loadLine = loadLine & "],[" & Format(MW, "0.00") & "," & Format(MVAR, "0.00") & ",_f,_f,_f,_f]" '# DESCRIPTION: " & Loads.Fields("description") & "; COMMENT: " & Loads.Fields("comment") & vbCrLf
+
+                PWDloadLine = PWDloadLine & Format(MW, "0.00") & "," & Format(MVAR, "0.00") & "," & Chr(34) & "Closed" & Chr(34) & vbCrLf    ' Added for Load PWD AUX AU 12 2
                     PWDloadLine = PWDloadLine & Chr(34) & "NO" & Chr(34) & "," 'Added for Load PWD AUX AU 12 2
                 End If
                 loadLine = loadLine & "],[" & Format(MW, "0.00") & "," & Format(MVAR, "0.00") & ",_f,_f,_f,_f]) # DESCRIPTION: " & Loads.Fields("description") & "; COMMENT: " & Loads.Fields
@@ -654,9 +685,9 @@ Public Function WriteOutFullModel(FilePath As String, baseYear As Double, Snapsh
                     If Not (SnapShotSeason = "L" And GenBus < 829 And GenBus > 820 And Left(Trim(Generators.Fields("pti_machine_id")), 1) <> "P") And _
                         Not (SnapShotSeason <> "L" And GenBus < 829 And GenBus > 820 And Left(Trim(Generators.Fields("pti_machine_id")), 1) = "P") Then
                         If Generators.Fields("end_date") < projectsEndDate And Generators.Fields("end_date") < snapshotDate Then ' Machine must be purged.
-                            genLine = genLine & "psspy.purgmac(" & GenBus & ",""" & Trim(genID) & """) # " & Generators.Fields("long_name")
-                            genLine = genLine & ", Project # " & Generators.Fields("project_id") & ", completion date: " & projectsMachinesArrFinDate(i)
-                            genLine = genLine & ", Gen start date: " & Generators.Fields("start_date") & ", Gen end date: " & Generators.Fields("end_date")
+                            genLine = genLine & "psspy.purgmac(" & GenBus & ",r""""""" & Trim(genID) & """"""")" & "# " & Generators.Fields("long_name")
+                            genLine = genLine & ". Project #" & Generators.Fields("project_id") & " - completion date: " & projectsMachinesArrFinDate(i)
+                            genLine = genLine & ". Gen start_date: " & Generators.Fields("start_date") & ". Gen end_date: " & Generators.Fields("end_date")
                         End If ' ^If Generators.Fields("end_date") < projectsEndDate And Generators.Fields("end_date") < snapshotDate Then ' Machine must be purged.
                     End If ' ^If Not (SnapShotSeason = "L" And GenBus < 829 And GenBus > 820 And Left(Trim(Generators.Fields("pti_machine_id")), 1) <> "P") And _
                         Not (SnapShotSeason <> "L" And GenBus < 829 And GenBus > 820 And Left(Trim(Generators.Fields("pti_machine_id")), 1) = "P") Then
@@ -1216,7 +1247,7 @@ If incBusData Then
                             If IsNull(Buses.Fields("Queue")) Or (Not IsNull(Buses.Fields("Queue")) And incQueued) Then
                                 If writePython Then
                                     If Buses.Fields("end_date") < projectsEndDate And Buses.Fields("end_date") < snapshotDate Then ' Bus must be purged.
-                                        Line = "psspy.bsysinit(1)" & vbCrLf & "psspy.bsyso(1," & Buses.Fields("bus_number") + busOffset & ")" & "# " & Buses.Fields("long_name") & vbCrLf & "psspy.extr(1,0[0,0])"
+                                        Line = "psspy.bsysinit(1)" & vbCrLf & "psspy.bsyso(1," & Buses.Fields("bus_number") + busOffset & ")" & "# " & Buses.Fields("long_name") & vbCrLf & "psspy.extr(1,0,[0,0])"
                                         Line = Line & "# Project #" & Buses.Fields("project_id") & " - completion date: " & projectsBusesArrFinDate(i)
                                         Line = Line & ". Bus start_date: " & Buses.Fields("start_date") & ". Bus end_date: " & Buses.Fields("end_date")
 
@@ -1669,14 +1700,12 @@ While Not Branches.EOF
                             Format(Branches.Fields("mileage"), "0.000"), Line_Name, Branches.Fields("norm_status"), RelayLoadMVA, MetSatMVA)	
 							
                         ElseIf UseSeasonalRatings And UseNewSumRatings Then    'use Summer Ratings 10/2023 BU
-                            Print #File, PrintPWDBranches(Bus1, Bus2, Trim(Branches.Fields("ckt")), _
-                                Format(Branches.Fields("Rpu"), "0.000000"), Format(Branches.Fields("Xpu"), "0.000000"), _
+                            Print #File, PrintPWDBranches(Bus1, Bus2, Trim(Branches.Fields("ckt")), Format(Branches.Fields("Rpu"), "0.000000"), Format(Branches.Fields("Xpu"), "0.000000"), _
                                 Format(Branches.Fields("Bpu"), "0.000000"), Int(Branches.Fields("RateA_Sum") * 10) / 10, Int(Branches.Fields("RateB_Sum") * 10) / 10, Int(Branches.Fields("RateC_Sum") * 10) / 10, _
                                 Format(Branches.Fields("mileage"), "0.000"), Line_Name, Branches.Fields("norm_status"), RelayLoadMVA, MetSatMVA)
 
                         ElseIf UseSeasonalRatings And UseFallRatings Then    'use Fall Ratings 10/2023 BU
                             Print #File, PrintPWDBranches(Bus1, Bus2, Trim(Branches.Fields("ckt")), Format(Branches.Fields("Rpu"), "0.000000"), Format(Branches.Fields("Xpu"), "0.000000"), _
-                                Format(Branches.Fields("Rpu"), "0.000000"), Format(Branches.Fields("Xpu"), "0.000000"), _
                                 Format(Branches.Fields("Bpu"), "0.000000"), Int(Branches.Fields("RateA_Fall") * 10) / 10, Int(Branches.Fields("RateB_Fall") * 10) / 10, Int(Branches.Fields("RateC_Fall") * 10) / 10, _
                                 Format(Branches.Fields("mileage"), "0.000"), Line_Name, Branches.Fields("norm_status"), RelayLoadMVA, MetSatMVA)
 
