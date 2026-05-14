@@ -470,7 +470,7 @@ Public Function WriteOutFullModel(FilePath As String, baseYear As Double, Snapsh
 
                                         MW = MW * loadScale
 
-                                        If loadScale < 1 And MVAR < 0 Then _
+                                        If loadScale <> 1 And MVAR < 0 Then _
                                             MVAR = MVAR * loadScale  ' I don't think it's a good idea to scale absolute value of MVAR down, thereby increasing MVAR, if MVAR is negative for lighter load periods - JWR
 										
                                     End If
@@ -627,26 +627,24 @@ Public Function WriteOutFullModel(FilePath As String, baseYear As Double, Snapsh
 
                 loadLine = loadLine & ",_i,"
                 If Not Loads.Fields("Scalable") Then ' Non-conforming Loads.
-                loadLine = loadLine & "_i,"
-                PWDloadLine = PWDloadLine & Chr(34) & "YES" & Chr(34) & ","    ' Added for Load PWD AUX AU 12 2
+				    loadLine = loadLine & "0,"
+					PWDloadLine = PWDloadLine & Chr(34) & "NO" & Chr(34) & " " 'Added for Load PWD AUX AU 12 2
+				Else 
+                    loadLine = loadLine & "_i,"
+                    PWDloadLine = PWDloadLine & Chr(34) & "YES" & Chr(34) & " "    'Added for Load PWD AUX AU 12 2
                 End If
 
                 If Loads.Fields("Interruptible") Then    ' Interruptible loads.
                     loadLine = loadLine & "1"
-                    PWDloadLine = PWDloadLine & Chr(34) & "YES" & Chr(34) & ","    ' Added for Load PWD AUX AU 12 2
+                    PWDloadLine = PWDloadLine & Chr(34) & "YES" & Chr(34) & " "    'Added for Load PWD AUX AU 12 2
                 Else
                     loadLine = loadLine & "_i"
-                    PWDloadLine = PWDloadLine & Chr(34) & "NO" & Chr(34) & ","    ' Added for Load PWD AUX AU 12 2
+                    PWDloadLine = PWDloadLine & Chr(34) & "NO" & Chr(34) & " "    'Added for Load PWD AUX AU 12 2
                 End If
 
-                loadLine = loadLine & "],[" & Format(MW, "0.00") & "," & Format(MVAR, "0.00") & ",_f,_f,_f,_f]" '# DESCRIPTION: " & Loads.Fields("description") & "; COMMENT: " & Loads.Fields("comment") & vbCrLf
-
-                PWDloadLine = PWDloadLine & Format(MW, "0.00") & "," & Format(MVAR, "0.00") & "," & Chr(34) & "Closed" & Chr(34) & vbCrLf    ' Added for Load PWD AUX AU 12 2
-                    PWDloadLine = PWDloadLine & Chr(34) & "NO" & Chr(34) & "," 'Added for Load PWD AUX AU 12 2
+                loadLine = loadLine & "],[ " & Format(MW, "0.00") & ", " & Format(MVAR, "0.00") & ",_f,_f,_f,_f]) # DESCRIPTION: " & Loads.Fields("description") & "; COMMENT: " & Loads.Fields("comment") & vbCrLf
+                PWDloadLine = PWDloadLine & Format(MW, "0.00") & " "  & Format(MVAR, "0.00") & " " & Chr(34) & "Closed" & Chr(34) & vbCrLf    'Added for Load PWD AUX AU 12 2
                 End If
-                loadLine = loadLine & "],[" & Format(MW, "0.00") & "," & Format(MVAR, "0.00") & ",_f,_f,_f,_f]) # DESCRIPTION: " & Loads.Fields("description") & "; COMMENT: " & Loads.Fields
-                PWDloadLine = PWDloadLine & Format(MW, "0.00") & "," & Format(MVAR, "0.00") & "," & Chr(34) & "Closed" & Chr(34) & vbCrLf 'Added for Load PWD AUX AU 12 2
-
             End If
             Loads.MoveNext
         Wend
@@ -813,25 +811,24 @@ Public Function WriteOutFullModel(FilePath As String, baseYear As Double, Snapsh
                                 'StatString = Chr(34) & "Closed" & Chr(34) 'Added for Gen PW Aux AU 12 2
                             End If 'Added AU 12 2
                             'Added PWDGenLine for PW gen aux file Mod AU 12 2
-                            Gen, BusNum, GenRegNum, GenID, GenStatus, GenMW, GenMVR, GenMVRMax, GenMVRMin, GenVoltSet, GenAGCAble, GenAVRAble
-                            PWDGenLine = PWDGenLine & GenBus & "," & RemBus & "," & Chr(34) & Trim(genID) & Chr(34) & "," & Chr(34) & StatString & Chr(34) & "," _
-                                & Format(Pgen, "0.0") & "," & "0.0" & "," _
-                                & Format(Qmax, "0.0") & "," & Format(Qmin, "0.0") & "," & Format(Pmax, "0.0") & "," _
-                                & Vsched & "," & Chr(34) & "YES" & Chr(34) & "," & Chr(34) & "YES" & Chr(34) & "," _
-                                & Format(Mbase, "0.000") & "," & Format(Source, "0.0000") & "," & Format(Xsour
+                            'Gen, BusNum, GenRegNum,GenID, GenStatus, GenMW, GenMVR, GenMVRMax, GenMVRMin, GenMWMax, GenMWMIn, GenVoltSet, GenAGCAble, GenAVRAble
+                            PWDgenLine = PWDgenLine & GenBus & " " & RemBus & " " & Chr(34) & Trim(genID) & Chr(34) & " " & Chr(34) & StatString & Chr(34) & " " _
+                                & " " & Format(Pgen, "0.0") & " " & "0.0" & " " _
+                                & Format(Qmax, "0.0") & " " & Format(Qmin, "0.0") & " " & Format(Pmax, "0.0") & " " & Format(Pmin, "0.0") & " " _
+                                & Vsched & " " & Chr(34) & "YES" & Chr(34) & " " & Chr(34) & "YES" & Chr(34) & " " & Format(Mbase, "0.000") & " " & Format(Rsource, "0.0000") & " " & Format(Xsource), "0.0000") &
 
-                            genLine = genLine & "psspy.plant_data(" & GenBus & ",""" & RemBus & """," & Vsched & "," & Percent & ")" & vbCrLf
-                            genLine = genLine & "psspy.machine_data(" & GenBus & ",""" & Trim(genID) & """,[" & Stat & ",-1,-1,-1,1," & Format(WindContMode, "0") & "], [" _
-                                & Format(Pgen, "0.0") & ",0.0," & Format(Qmax, "0.0") & "," & Format(Qmin, "0.0") _
-                                & "," & Format(Pmax, "0.0") & "," & Format(Pmin, "0.0") & "," _
-                                & Format(Source, "0.00000") & "," & Format(Xsource, "0.00000") _
-                                & ",0.0,1.0," & Format(WindPF, "0.00") & "])" & vbCrLf
-                            genLine = genLine & "# " & Generators.Fields("long_name") & vbCrLf
+                            genLine = genLine & "psspy.plant_data(" & GenBus & ", [" & RemBus & "], [" & Vsched & ", " & Percent & "])" & vbCrLf
+                            genLine = genLine & "psspy.machine_data_2(" & GenBus & ", '" & Trim(genID) & "', [" & Stat & ",_i, _i, _i, _i," & Format(WindContMode, "0") & "], [" _
+                                & Format(Pgen, "0.0") & ", 0.0, " & Format(Qmax, "0.0") & ", " & Format(Qmin, "0.0") _
+                                & ", " & Format(Pmax, "0.0") & ", " & Format(Pmin, "0.0") & ", " & Format(Mbase, "0.0") _
+                                & ", " & Format(Rsource, "0.00000") & ", " & Format(Xsource, "0.00000") _
+                                & ", _f, _f, _f, _f, _f, " & Format(WindPF, "0.00") & "])"
+                            genLine = genLine & "# " & Generators.Fields("long_name")
 
-                            If Not IsNull(Generators.Fields("project_id")) Then
-                                genLine = genLine & ", Project # " & Generators.Fields("project_id") & ", completion date: " & projectsMachinesArrFinDate(i)
-                                genLine = genLine & ", Gen start date: " & Generators.Fields("start_date") & ", Gen end date: " & Generators.Fields("end_date") & vbCrLf
-                                If genArray(0) <> 0 Then
+                            If Not IsNull(Generators.Fields("project_id")) Then _
+                                genLine = genLine & ". Project #" & Generators.Fields("project_id") & " - completion date: " & projectsMachinesArrFinDate(i)
+                                genLine = genLine & ". Gen start_date: " & Generators.Fields("start_date") & ". Gen end_date: " & Generators.Fields("end_date") & vbCrLf
+                                If genArray(0) <> 0 Then _
                                     ReDim Preserve genArray(UBound(genArray) + 1)
                                 genArray(UBound(genArray)) = GenBus
 
