@@ -448,7 +448,7 @@ Public Function WriteOutFullModel(FilePath As String, baseYear As Double, Snapsh
                                         MVAR = LoadHistory.Fields("MVAR").Value
                                         QoverP = 0
                                         If MW = 0 Then    'you can't divide by zero. If MW=0 then assign a default PF of 0.98
-                                            QoverP = 0.20305    'estimate PF ~= .98
+                                            Exit Do 'Hop out of loop - the MW value is null, meaning we need previous years
                                         Else    'otherwise get a Q/P so the correct MVAR value can be calculated later
                                             QoverP = MVAR / MW
                                         End If
@@ -472,7 +472,7 @@ Public Function WriteOutFullModel(FilePath As String, baseYear As Double, Snapsh
                         End If
 
                         'Send a message box to user if any loads are greater than 150MW
-                        If MW > 150 Then 'Removed for Multiple Models to prevent Pop-up. May reinstate as logged error  AU 4/13/2020
+                        'If MW > 150 Then 'Removed for Multiple Models to prevent Pop-up. May reinstate as logged error  AU 4/13/2020
                             'MsgBox "The MW value is very high (>150) for load point ID " & ID & ". Setting value to 150MW to prevent issues. LOOK INTO THIS!"
 
                             'Add forecast dMW/dFrac values:
@@ -1261,7 +1261,7 @@ While Not Buses.EOF
                     If Buses.Fields("bus_number") < maxBus And (Dynamics And (Buses.Fields("bus_number") < 740 And Buses.Fields("bus_number") > 722) _
                         Or (Buses.Fields("bus_number") >= 740 Or Buses.Fields("bus_number") <= 722)) Then ' VCS1 SS buses between 722 and 740)) Then
                     If Buses.Fields("external_tie_bus") Then
-                        Line = "psspy.bus_data_3(" & Buses.Fields("bus_number") & ", [" ' do not put external busses into python file
+                        Line = "psspy.bus_data_3(" & Buses.Fields("bus_number") & ", [" 'do not put external busses into python file
                     Else
                         incQueued = False
                         If incSolar And Not (IsNull(Buses.Fields("Queue"))) Then
@@ -1666,7 +1666,25 @@ While Not Branches.EOF
                         ElseIf UseSeasonalRatings And UseSpringRatings Then ' use Spring ratings 10/2023 BU
                             Print #File, PrintPWDBranches(Bus1, Bus2, Trim(Branches.Fields("ckt")), Format(Branches.Fields("Rpu"), "0.000000"), Format(Branches.Fields("Xpu"), "0.000000"), _
                                 Format(Branches.Fields("Bpu"), "0.000000"), Int(Branches.Fields("RateA_Spr") * 10) / 10, Int(Branches.Fields("RateB_Spr") * 10) / 10, Int(Branches.Fields("RateC_Spr") * 10) / 10, _
-                            Format(Branches.Fields("mileage"), "0.000"), Line_Name, Branches.Fields("norm_status"), RelayLoadMVA, MetSatMVA)		
+                            Format(Branches.Fields("mileage"), "0.000"), Line_Name, Branches.Fields("norm_status"), RelayLoadMVA, MetSatMVA)	
+							
+                        ElseIf UseSeasonalRatings And UseNewSumRatings Then    'use Summer Ratings 10/2023 BU
+                            Print #File, PrintPWDBranches(Bus1, Bus2, Trim(Branches.Fields("ckt")), _
+                                Format(Branches.Fields("Rpu"), "0.000000"), Format(Branches.Fields("Xpu"), "0.000000"), _
+                                Format(Branches.Fields("Bpu"), "0.000000"), Int(Branches.Fields("RateA_Sum") * 10) / 10, Int(Branches.Fields("RateB_Sum") * 10) / 10, Int(Branches.Fields("RateC_Sum") * 10) / 10, _
+                                Format(Branches.Fields("mileage"), "0.000"), Line_Name, Branches.Fields("norm_status"), RelayLoadMVA, MetSatMVA)
+
+                        ElseIf UseSeasonalRatings And UseFallRatings Then    'use Fall Ratings 10/2023 BU
+                            Print #File, PrintPWDBranches(Bus1, Bus2, Trim(Branches.Fields("ckt")), _
+                                Format(Branches.Fields("Rpu"), "0.000000"), Format(Branches.Fields("Xpu"), "0.000000"), _
+                                Format(Branches.Fields("Bpu"), "0.000000"), Int(Branches.Fields("RateA_Fall") * 10) / 10, Int(Branches.Fields("RateB_Fall") * 10) / 10, Int(Branches.Fields("RateC_Fall") * 10) / 10, _
+                                Format(Branches.Fields("mileage"), "0.000"), Line_Name, Branches.Fields("norm_status"), RelayLoadMVA, MetSatMVA)
+
+                        End If
+
+                    'END PWD AUX MOD BRANCHES
+                    End If    'If Not projectsSubset Or (projectsSubset And Branches.Fields("end_date") >= projectsEndDate And Branches.Fields("end_date") >= SnapshotDate) Then ' Branch must be added.
+
                         End If ' ^If writeOut Then
                     End If ' ^If (bus1 < MaxBus Or Branches.Fields("external_1")) And (bus2 < MaxBus Or Branches.Fields("external_2")) Then
                 End If ' ^If BusInSubsystem(bus1) And BusInSubsystem(bus2) Then
