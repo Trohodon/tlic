@@ -272,7 +272,7 @@ Public Function WriteOutFullModel(FilePath As String, baseYear As Double, Snapsh
         'Print #File, "" & Chr(34) & "Bus" & Chr(34) & " " & Chr(34) & " " & Chr(34) & "AND" & Chr(34) & "," & Chr(34) & "1" & Chr(34) & "," & Chr(34) & "NO" & Chr(34) & "," & Chr(34) & "YES" & Chr(34)
         'Print #File, "" & Chr(34) & "Branch" & Chr(34) & "," & Chr(34) & " " & Chr(34) & "AND" & Chr(34) & "," & Chr(34) & "1" & Chr(34) & "," & Chr(34) & "NO" & Chr(34) & "," & Chr(34) & "YES" & Chr(34)
         'Print #File, "" & Chr(34) & "Gen" & Chr(34) & "," & Chr(34) & " " & Chr(34) & "AND" & Chr(34) & "," & Chr(34) & "1" & Chr(34) & "," & Chr(34) & "NO" & Chr(34) & "," & Chr(34) & "YES" & Chr(34)
-        Print #File, Chr(34) & "Load" & Chr(34) & " SCEG" & Chr(34) & " & Chr(34) & " " & Chr(34) & " AND " & Chr(34) & " " & Chr(34) & "1" & Chr(34) & " " & Chr(34) & "NO" & Chr(34) & " " & Chr(34) & "YES" & Chr(34)
+        Print #File, Chr(34) & "Load" & Chr(34) & " " & Chr(34) & "SCEG" & Chr(34) & " " & Chr(34) & " AND " & Chr(34) & " " & "1" & " " & Chr(34) & "NO" & " " & Chr(34) & " " & Chr(34) & "YES" & Chr(34) & " " & Chr(34) & Chr(34) & vbCrLf & vbTab & Chr(60) & "SUBDATA Condition" & Chr(62) & vbCrL & vbTab & " AreaName startswith " & Chr(34) & "SCEG" & Chr(34) & vbCrLf & vbTab & Chr(60) & Chr(47) & "SUBDATA" & Chr(62)
 
         Print #File, "" & Chr(34) & "Bus" & Chr(34) & "," & Chr(34) & "SCEG" & Chr(34) & "," & Chr(34) & " " & Chr(34) & "AND" & Chr(34) & "," & Chr(34) & "1" & Chr(34) & "," & Chr(34) & "NO" & Chr(34) & "," & Chr(34) & "YES" & Chr(34)
         Print #File, "" & Chr(34) & "Branch" & Chr(34) & "," & Chr(34) & "SCEG" & Chr(34) & "," & Chr(34) & " " & Chr(34) & "AND" & Chr(34) & "," & Chr(34) & "1" & Chr(34) & "," & Chr(34) & "NO" & Chr(34) & "," & Chr(34) & "YES" & Chr(34)
@@ -821,7 +821,7 @@ Public Function WriteOutFullModel(FilePath As String, baseYear As Double, Snapsh
                             genLine = genLine & "psspy.machine_data_2(" & GenBus & ", '" & Trim(genID) & "', [" & Stat & ",_i, _i, _i, _i," & Format(WindContMode, "0") & "], [" _
                                 & Format(Pgen, "0.0") & ", 0.0, " & Format(Qmax, "0.0") & ", " & Format(Qmin, "0.0") _
                                 & ", " & Format(Pmax, "0.0") & ", " & Format(Pmin, "0.0") & ", " & Format(Mbase, "0.0") _
-                                & ", " & Format(Rsource, "0.0000") & ", " & Format(Xsource, "0.0000")& ", " & Format(TFMR_R, "0.0000") & ", " & Format(TFMR_R, "0.0000") _
+                                & ", " & Format(Rsource, "0.0000") & ", " & Format(Xsource, "0.0000") & ", " & Format(TFMR_R, "0.0000") & ", " & Format(TFMR_R, "0.0000") _
                                 & ", _f, _f, _f, _f, _f, " & Format(WindPF, "0.00") & "])"
                             genLine = genLine & "# " & Generators.Fields("long_name")
 
