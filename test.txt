@@ -1216,8 +1216,8 @@ If incBusData Then
                             If IsNull(Buses.Fields("Queue")) Or (Not IsNull(Buses.Fields("Queue")) And incQueued) Then
                                 If writePython Then
                                     If Buses.Fields("end_date") < projectsEndDate And Buses.Fields("end_date") < snapshotDate Then ' Bus must be purged.
-                                        Line = "psspy.bsysinit(1)" & vbCrLf & "psspy.bsyso(1," & Buses.Fields("bus_number") & ")" & " " & Buses.Fields("long_name") & vbCrLf & "psspy.ex"
-                                        Line = Line & ". Bus Project #: " & Buses.Fields("project_id") & ". Bus completion date: " & projectsBusesArrFinDate(i)
+                                        Line = "psspy.bsysinit(1)" & vbCrLf & "psspy.bsyso(1," & Buses.Fields("bus_number") + busOffset & ")" & "# " & Buses.Fields("long_name") & vbCrLf & "psspy.extr(1,0[0,0])"
+                                        Line = Line & "# Project #" & Buses.Fields("project_id") & " - completion date: " & projectsBusesArrFinDate(i)
                                         Line = Line & ". Bus start_date: " & Buses.Fields("start_date") & ". Bus end_date: " & Buses.Fields("end_date")
 
                                         Print #File, Line
@@ -1675,7 +1675,7 @@ While Not Branches.EOF
                                 Format(Branches.Fields("mileage"), "0.000"), Line_Name, Branches.Fields("norm_status"), RelayLoadMVA, MetSatMVA)
 
                         ElseIf UseSeasonalRatings And UseFallRatings Then    'use Fall Ratings 10/2023 BU
-                            Print #File, PrintPWDBranches(Bus1, Bus2, Trim(Branches.Fields("ckt")), _
+                            Print #File, PrintPWDBranches(Bus1, Bus2, Trim(Branches.Fields("ckt")), Format(Branches.Fields("Rpu"), "0.000000"), Format(Branches.Fields("Xpu"), "0.000000"), _
                                 Format(Branches.Fields("Rpu"), "0.000000"), Format(Branches.Fields("Xpu"), "0.000000"), _
                                 Format(Branches.Fields("Bpu"), "0.000000"), Int(Branches.Fields("RateA_Fall") * 10) / 10, Int(Branches.Fields("RateB_Fall") * 10) / 10, Int(Branches.Fields("RateC_Fall") * 10) / 10, _
                                 Format(Branches.Fields("mileage"), "0.000"), Line_Name, Branches.Fields("norm_status"), RelayLoadMVA, MetSatMVA)
