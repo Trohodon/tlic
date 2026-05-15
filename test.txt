@@ -1870,10 +1870,10 @@ End Function
 
 Public Function TransformerData(FilePath, baseYear, SnapshotIndex, useRegionalNumbering, busOffset, RegionalArea, _
     ZoneOffset, ZoneConfig, OwnerOffset, OverwriteSCEGArea, SCEGAreaToOverwrite, AutoDispatch, TargetSwingGen, _
-    SlackBus, combineBuses, ShortCircuit, dynamics, UseOldWinterRatings, UseSeasonalRatings, UseNewWinPeakRatings, _
-    UseOpsPlnWinRatings, UseSpringRatings, UseNewSumRatings, UseFallRatings, UseSeasonalRatings, _
-    TRIMImport, TRIMDec, TRIMDVP, TRIMDEP, TRIMSC, incSolar, percentOfSolar, ignoreAfterQueueNum, _
-    incNOIA, incAffSys, incERIS, incBusData, incShuntData, incBranchData, incTfmrData, incLoadData, _
+    SlackBus, combineBuses, ShortCircuit, Dynamics, UseOldWinterRatings, UseSeasonalRatings, UseNewWinPeakRatings, _
+    UseOpsPlnWinRatings, UseSpringRatings, UseNewSumRatings, UseFallRatings, GenDown, SysLoss, _
+    TRMImport, TRImDEC, TRMImDVP, TRMImDEP, TRMImSC, incSolar, percentOfSolar, ignoreAfterQueueNum, _
+    incNoIA, incAffSys, incERIS, incBusData, incShuntData, incBranchData, incTfmrData, incLoadData, _
     incGenData, writePython, snapDate, snapSeason, projectsSubset, projectsStartDate, _
     projectsEndDate, File, SeqFile, branchBreakersFile)
 
@@ -1941,7 +1941,6 @@ If incTfmrData Then
 
                                 If Not Transformers.Fields("external_2") And useRegionalNumbering Then _
                                     Bus2 = Bus2 + busOffset
-                                End If
 
                                 If Transformers.Fields("end_date") < projectsEndDate And Transformers.Fields("end_date") <= snapshotDate Then ' Transformer must be purged.
                                     Line = "psspy.purgbrn(" & Bus1 & "," & Bus2 & ",""" & Trim(Transformers.Fields("pck")) & """)"
@@ -2011,20 +2010,17 @@ While Not Transformers.EOF
 					If IsNull(Transformers.Fields("Queue")) Or (Not IsNull(Transformers.Fields("Queue")) And incQueued) Then
 						If Not Transformers.Fields("external_1") And useRegionalNumbering Then _
 							Bus1 = Bus1 + busOffset
-						End If
 						If Not Transformers.Fields("external_2") And useRegionalNumbering Then _
 							Bus2 = Bus2 + busOffset
-						End If
-
 						If Not projectsSubset Or (projectsSubset And Transformers.Fields("start_date") <= projectsEndDate And Transformers.Fields("end_date") > snapshotDate) Then
 
-							'PrintPWDTransformers(Bus1 As Long, Bus2 As Long, Ckt As Long, TransR As Long, TransX As Long, RateA As Long, RateB As Long, RateC As Long, LineXFType As String, controlledBus As Long, in
+							'PrintPWDTransformers(Bus1 As Long, Bus2 As Long, Ckt As Long, TransR As Long, TransX As Long, RateA As Long, RateB As Long, RateC As Long,LineXFType As String, controlledBus As Long, in
 							'Perform bus1 and bus2 swap necessary based on winding_one field so low side is always the from bus. Makes sure LTC work properly.
 							If Transformers.Fields("winding_one") + busOffset = Bus1 Then
 								'do nothing and keep bus1 as is
 							End If
 							If Transformers.Fields("winding_one") + busOffset = Bus2 Then
-								'swap bus1 and bus2 so the XFMR connection/codes and LTCs work properly. Winding one should always be on the From Bus per PW convention.
+								'swap bus1 and bus2 so the XFMR connection codes and LTCs work properly. Winding_one should always be on the From Bus per PW convention.
 								Bus1New = Bus2
 								Bus2New = Bus1
 								Bus1 = Bus1New
@@ -2039,7 +2035,7 @@ While Not Transformers.EOF
 								
 							If UseOldWinterRatings Then 'use old winter ratings (80 deg F) 10/2023 BU
 								Print #File, PrintPWDTransformers(Bus1, Bus2, Trim(Transformers.Fields("ckt")), Format(Transformers.Fields("R"), "0.000000"), Format(Transformers.Fields("X"), "0.000000"), _
-									Format(Transformers.Fields("RateA_Win"), "0.0"), Format(Transformers.Fields("RateB_Win"), "0.0"), Format(Transformers.Fields("RateC_Win"), "0.0"), _
+									Format(Transformers.Fields("RateA_win"), "0.0"), Format(Transformers.Fields("RateA_win"), "0.0"), Format(Transformers.Fields("RateA_win"), "0.0"), _
 									Transformers.Fields("control_mode"), Transformers.Fields("controlled_bus"), Transformers.Fields("in_service"), _
 									Format(Transformers.Fields("mva_base"), "0.0"), Format(Transformers.Fields("vmax"), "0.0000"), Format(Transformers.Fields("vmin"), "0.0000"), _
 									Transformers.Fields("connection"), Format(Transformers.Fields("WindingOneTapRatio"), "0.0000"), Format(Transformers.Fields("WindingTwoTapRatio"), "0.0000"), _
@@ -2101,7 +2097,7 @@ While Not Transformers.EOF
 								Print #File, ""
 								Print #File, commChar & "===================== THREE WINDING TRANSFORMER DATA ========================"
 
-								Print #File, "3WXFormer (BusIdentifier,BusIdentifier:1,BusIdentifier:2,BusIdentifier:3,LineCircuit,R3W:3,R3W:4,R3W:5,X3W:3,X3W:4,X3W:5,Tap3W:1,NomVolt3W:1,Tap3W:2,NomVolt3W:2,Tap3W:3"
+								Print #File, "3WXFormer (BusIdentifier,BusIdentifier:1,BusIdentifier:2,BusIdentifier:3,LineCircuit,R3W:3,R3W:4,R3W:5,X3W:3,X3W:4,X3W:5,Tap3W:1,NomVolt3W,Tap3W,Tap3W:2,NomVolt3W:1,Tap3W:3"
 
 								Set QueuedProjects = db.OpenRecordset("QueuedProjects", dbOpenDynaset, dbSeeChanges)
 
@@ -2175,10 +2171,10 @@ While Not Transformers.EOF
 															Bus2 = Bus2New
 														End If
 
-														Print #File, PrintPWD3WTransformers(Bus1, Bus2, Bus3, Bus4, Trim(Transformers.Fields("ckt")), Format(Transformers.Fields("W1_2_R"), "0.000000"), _
-															Format(Transformers.Fields("W1_2_X"), "0.000000"), Format(Transformers.Fields("W1_3_R"), "0.000000"), _
+														Print #File, PrintPWD3WTransformers(Bus1, Bus2, Bus3, Bus4, Trim(Transformers.Fields("ckt")), Format(Transformers.Fields("W1-2_R"), "0.000000"), _
+															Format(Transformers.Fields("W1_2_X"), "0.000000"), Format(Transformers.Fields("W1-2_X"), "0.000000"), _
 															Format(Transformers.Fields("W1_3_X"), "0.000000"), Format(Transformers.Fields("W2_3_R"), "0.000000"), _
-															Format(Transformers.Fields("W2_3_X"), "0.000000"), Format(Transformers.Fields("Tap_C"), "0.0"), Format(Transformers.Fields("base_C"), "0.0"), _
+															Format(Transformers.Fields("W3-1_R"), "0.000000"), Format(Transformers.Fields("W3-1_X"), "0.000000"), _
 															Transformers.Fields("control_mode"), Transformers.Fields("controlled_bus"), Transformers.Fields("in_service"), _
 															Format(Transformers.Fields("Winding1_2_mva_base"), "0.0"), Format(Transformers.Fields("Winding1_3_mva_base"), "0.0"), Format(Transformers.Fields("Winding2
 															Format(Transformers.Fields("vmax"), "0.0000"), Format(Transformers.Fields("vmin"), "0.0000"), Transformers.Fields("connection"), _
