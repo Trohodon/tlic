@@ -2355,7 +2355,7 @@ Private Function PrintSwitchedShunts(snapshotDate As Date, maxBus As Long, combi
                     Bus1 = Bus1 + busOffset
 
                 Line = Line & Bus1 & " ""1"" ""Closed"" ""Discrete"" "  & Format(SwitchedShunts.Fields("vhi_pu"), "0.00000") & " " & Format(SwitchedShunts.Fields("vlo_pu"), "0.00000")
-                Line = Line & " " & Format("b_init_MVAR"), "0.00") & " " & SwitchedShunts.Fields("blk1_steps") & " " & Format(SwitchedShunts.Fields("blk1_bstep_MVAR"), "0.00") & _
+                Line = Line & " " & Format(SwitchedShunts.Fields("b_init_MVAR"), "0.00") & " " & SwitchedShunts.Fields("blk1_steps") & " " & Format(SwitchedShunts.Fields("blk1_bstep_MVAR"), "0.00") & _
                 " 1.005" & vbCrLf ' May need to put Target/Desired volt at the end of this (before vbCrLf)
 
             End If
@@ -2367,4 +2367,402 @@ Private Function PrintSwitchedShunts(snapshotDate As Date, maxBus As Long, combi
     SwitchedShunts.Close
 
     PrintSwitchedShunts = Line
+End Function
+
+Private Function ProjectArrayCreate(projectsStartDate As Date, projectsEndDate As Date, projectsTable As DAO.Recordset)
+    Dim projectsTableArr() As String, projectsTableArrFinDate() As String
+    ReDim projectsTableArr(0)
+    ReDim projectsTableArrFinDate(0)
+
+    projectsTable.MoveLast
+    projectsTable.MoveFirst
+    While Not projectsTable.EOF
+        If projectsTable.Fields("include") And projectsStartDate <= projectsTable.Fields("Fin_Date") And projectsEndDate > projectsTable.Fields("Fin_Date") Then
+            If projectsTableArr(0) <> "" Then
+                ReDim Preserve projectsTableArr(UBound(projectsTableArr) + 1)
+                ReDim Preserve projectsTableArrFinDate(UBound(projectsTableArrFinDate) + 1)
+            End If
+            projectsTableArr(UBound(projectsTableArr)) = projectsTable.Fields("project_id")
+            projectsTableArrFinDate(UBound(projectsTableArrFinDate)) = projectsTable.Fields("Fin_Date")
+        End If
+
+        projectsTable.MoveNext
+    Wend
+
+    If projectsTable.Name = "ProjectsBuses" Then
+        projectsBusesArr = projectsTableArr
+        projectsBusesArrFinDate = projectsTableArrFinDate
+    ElseIf projectsTable.Name = "ProjectsBranches" Then
+        projectsBranchesArr = projectsTableArr
+        projectsBranchesArrFinDate = projectsTableArrFinDate
+    ElseIf projectsTable.Name = "ProjectsMachines" Then
+        projectsMachinesArr = projectsTableArr
+        projectsMachinesArrFinDate = projectsTableArrFinDate
+    ElseIf projectsTable.Name = "ProjectsSwitchedShunts" Then
+        projectsSwitchedShuntsArr = projectsTableArr
+        projectsSwitchedShuntsArrFinDate = projectsTableArrFinDate
+    ElseIf projectsTable.Name = "ProjectsTwoWindings" Then
+        projectsTwoWindingsArr = projectsTableArr
+        projectsTwoWindingsArrFinDate = projectsTableArrFinDate
+    End If
+
+    projectsTable.Close
+End Function
+
+Public Function UpdateDeviceData()
+    Set db = CurrentDb()
+    Dim DeviceDataQ As DAO.Recordset, DeviceData As DAO.Recordset, SQL As String
+    DoCmd.SetWarnings False
+    DoCmd.RunSQL "DELETE * FROM DeviceData;"
+
+    Set DeviceDataQ = db.OpenRecordset("DeviceData_All", dbOpenDynaset, dbSeeChanges)
+    DeviceDataQ.MoveLast
+    DeviceDataQ.MoveFirst
+    While Not DeviceDataQ.EOF
+        If DeviceDataQ.Fields("start_date") < SnapshotDate And SnapshotDate < DeviceDataQ.Fields("end_date") Then
+            Set DeviceData = db.OpenRecordset("DeviceData", dbOpenDynaset, dbSeeChanges)
+            Dim dlkup As Variant
+            dlkup = DLookup("ckt", "DeviceData", "branch_id = " & DeviceDataQ.Fields("branch_id"))
+
+            If Not IsNull(dlkup) Then
+                If DeviceDataQ.Fields("fromnum") <> "" Then
+                    DoCmd.RunSQL "UPDATE DeviceData SET fromnum = '" & DeviceDataQ.Fields("fromnum") & "' WHERE (branch_id = " & DeviceDataQ.Fields("branch_id") & ");"
+                If DeviceDataQ.Fields("tonum") <> "" Then
+                    DoCmd.RunSQL "UPDATE DeviceData SET tonum = '" & DeviceDataQ.Fields("tonum") & "' WHERE (branch_id = " & DeviceDataQ.Fields("branch_id") & ");"
+                Else
+                    DoCmd.RunSQL "INSERT INTO DeviceData VALUES (" & DeviceDataQ.Fields("branch_id") & ", '" & DeviceDataQ.Fields("nostat") & "', '" & DeviceDataQ.Fields("fromnum") & "', '" & DeviceDataQ.Fields("tonum") & "', '" & _
+                    DeviceDataQ.Fields("fromtype") & "', '" & DeviceDataQ.Fields("totype") & "', '" & DeviceDataQ.Fields("bus1") & "', '" & DeviceDataQ.Fields("bus2") & "', '" & DeviceDataQ.Fields("ckt") & "', '" & _
+                    DeviceDataQ.Fields("bus1name") & "', '" & DeviceDataQ.Fields("bus2name") & "', '" & DeviceDataQ.Fields("line_name") & "', '" & DeviceDataQ.Fields("start_date") & "', '" & DeviceDataQ.Fields("end_date") & "');"
+                End If
+            End If
+            DeviceDataQ.MoveNext
+    Wend
+    DeviceData.Close
+    DeviceDataQ.Close
+
+    DoCmd.RunSQL "DELETE * FROM TFMR_DeviceData;"
+
+    Set DeviceDataQ = db.OpenRecordset("TFMR_DeviceData_All", dbOpenDynaset, dbSeeChanges)
+    DeviceDataQ.MoveLast
+    DeviceDataQ.MoveFirst
+    While Not DeviceDataQ.EOF
+        If DeviceDataQ.Fields("start_date") < SnapshotDate And SnapshotDate < DeviceDataQ.Fields("end_date") Then
+            Set DeviceData = db.OpenRecordset("TFMR_DeviceData", dbOpenDynaset, dbSeeChanges)
+            dlkup = DLookup("ckt", "TFMR_DeviceData", "two_winding_id = " & DeviceDataQ.Fields("two_winding_id"))
+
+            If Not IsNull(dlkup) Then
+                If DeviceDataQ.Fields("fromnum") <> "" Then
+                    DoCmd.RunSQL "UPDATE TFMR_DeviceData SET fromnum = '" & DeviceDataQ.Fields("fromnum") & "' WHERE (two_winding_id = " & DeviceDataQ.Fields("two_winding_id") & ");"
+                If DeviceDataQ.Fields("tonum") <> "" Then
+                    DoCmd.RunSQL "UPDATE TFMR_DeviceData SET tonum = '" & DeviceDataQ.Fields("tonum") & "' WHERE (two_winding_id = " & DeviceDataQ.Fields("two_winding_id") & ");"
+                Else
+                    DoCmd.RunSQL "INSERT INTO TFMR_DeviceData VALUES (" & DeviceDataQ.Fields("two_winding_id") & ", '" & DeviceDataQ.Fields("nostat") & "', '" & DeviceDataQ.Fields("fromnum") & "', '" & DeviceDataQ.Fields("tonum") & "', '" & _
+                    DeviceDataQ.Fields("fromtype") & "', '" & DeviceDataQ.Fields("totype") & "', '" & DeviceDataQ.Fields("from_bus") & "', '" & DeviceDataQ.Fields("to_bus") & "', '" & DeviceDataQ.Fields("ckt") & "', '" & _
+                    DeviceDataQ.Fields("frombusName") & "', '" & DeviceDataQ.Fields("tobusName") & "', '" & DeviceDataQ.Fields("bus_name_1") & "', '" & DeviceDataQ.Fields("bus_name_2") & "', '" & DeviceDataQ.Fields("bus_name_1") & _
+                    " Transformer" & DeviceDataQ.Fields("ckt") & "', '" & DeviceDataQ.Fields("start_date") & "', '" & DeviceDataQ.Fields("end_date") & "');"
+                End If
+            End If
+            DeviceDataQ.MoveNext
+    Wend
+
+    DeviceData.Close
+    DeviceDataQ.Close
+
+    DoCmd.SetWarnings True
+End Function
+
+Public Function FormatLeftStr(str As String, Width As Integer)
+    If (Width - Len(str)) >= 0 Then
+        FormatLeftStr = str & Space(Width - Len(str))
+    Else
+        FormatLeftStr = str
+    End If
+End Function
+
+Public Function BusInSubsystem(bus As Long) As Boolean
+    BusInSubsystem = False
+    Dim i As Integer
+    If Subsystem Then
+        For i = 1 To SubsysSize
+            If BusSubsys(i) = bus Then
+                BusInSubsystem = True
+            End If
+        Next i
+    Else
+        BusInSubsystem = True
+    End If
+End Function
+
+Public Function GenDownListPos(Gen As Long) As Integer
+    GenDownListPos = GenDownSize + 1
+    Dim i As Integer
+    If GenDownBool Then
+        For i = 1 To GenDownSize
+            If GenDownArr(i) + 370000 = Gen Then
+                GenDownListPos = i
+            End If
+        Next i
+    End If
+End Function
+
+Private Sub test()
+    Dim QDF As DAO.QueryDef
+    Dim SQL As String
+    Dim Buses As DAO.Recordset
+    Set db = CurrentDb()
+
+    Set Buses = db.OpenRecordset("Buses", dbOpenDynaset, dbSeeChanges)
+    SQL = "UPDATE Buses SET Include = Yes" & " WHERE (load_point_id = " & ID & ");"
+    DoCmd.RunSQL SQL
+End Sub
+
+Public Sub createSolarKMLSub()
+    createSolarKML ("")
+    createSolarKML ("_forNeighbor")
+End Sub
+
+Private Function createSolarKML(forNeighbor As String)
+    Dim QDF As DAO.QueryDef, SQL As String, QueuedProjects As DAO.Recordset
+    Set db = CurrentDb()
+
+    Dim File As Integer
+    File = FreeFile
+    Open "C:\ModelDB\" & Year(Now) & "-" & Month(Now) & "-" & Day(Now) & "-SCEG_Queue" & forNeighbor & ".kml" For Output As #File
+
+    Print #File, "<?xml version=""1.0"" encoding=""UTF-8""?>"
+    Print #File, "<kml xmlns=""http://www.opengis.net/kml/2.2"" xmlns:gx=""http://www.google.com/kml/ext/2.2"" xmlns:kml=""http://www.opengis.net/kml/2.2"" xmlns:atom=""http://www.w3.org/2005/Atom"">"
+    Print #File, "<Document>"
+    Print #File, vbTab & "<name>" & Year(Now) & "-" & Month(Now) & "-" & Day(Now) & "-SCEG_Queue.kml</name>"
+    Print #File, vbTab & "<Schema name=""SCEG Queue"" id=""SCEG_Queue"">"
+    Print #File, vbTab & vbTab & "<SimpleField type=""double"" name=""Latitude""><displayName>&lt;b&gt;Latitude&lt;/b&gt;</displayName></SimpleField>"
+    Print #File, vbTab & vbTab & "<SimpleField type=""double"" name=""Longitude""><displayName>&lt;b&gt;Longitude&lt;/b&gt;</displayName></SimpleField>"
+    Print #File, vbTab & vbTab & "<SimpleField type=""double"" name=""MW""><displayName>&lt;b&gt;MW&lt;/b&gt;</displayName></SimpleField>"
+    Print #File, vbTab & vbTab & "<SimpleField type=""int"" name=""QueueNum""><displayName>&lt;b&gt;QueueNum&lt;/b&gt;</displayName></SimpleField>"
+    Print #File, vbTab & vbTab & "<SimpleField type=""string"" name=""Size""><displayName>&lt;b&gt;Size&lt;/b&gt;</displayName></SimpleField>"
+    Print #File, vbTab & vbTab & "<SimpleField type=""string"" name=""POI""><displayName>&lt;b&gt;POI&lt;/b&gt;</displayName></SimpleField>"
+    If forNeighbor = "" Then
+        Print #File, vbTab & vbTab & "<SimpleField type=""int"" name=""SignedIA""><displayName>&lt;b&gt;SignedIA&lt;/b&gt;</displayName></SimpleField>"
+    End If
+    Print #File, vbTab & "</Schema>"
+
+    Print #File, vbTab & "<Style id=""sh_sunny"">"
+    Print #File, vbTab & vbTab & "<IconStyle>"
+    Print #File, vbTab & vbTab & vbTab & "<color>ff0055ff</color>"
+    Print #File, vbTab & vbTab & vbTab & "<scale>1.2</scale>"
+    Print #File, vbTab & vbTab & vbTab & "<Icon>"
+    Print #File, vbTab & vbTab & vbTab & vbTab & "<href>http://maps.google.com/mapfiles/kml/shapes/sunny.png</href>"
+		
+	Print #File, vbTab & vbTab & vbTab & "<ItemIcon>"
+	Print #File, vbTab & vbTab & vbTab & vbTab & "<href>http://maps.google.com/mapfiles/kml/paddle/C-lv.png</href>"
+	Print #File, vbTab & vbTab & vbTab & "</ItemIcon>"
+	Print #File, vbTab & vbTab & "</ListStyle>"
+	Print #File, vbTab & "</Style>"
+
+	Print #File, vbTab & "<Style id=""sh_G"">"
+	Print #File, vbTab & vbTab & "<IconStyle>"
+	Print #File, vbTab & vbTab & vbTab & "<scale>1</scale>"
+	Print #File, vbTab & vbTab & vbTab & "<color>ff0055ff</color>"
+	Print #File, vbTab & vbTab & vbTab & "<Icon>"
+	Print #File, vbTab & vbTab & vbTab & vbTab & "<href>http://maps.google.com/mapfiles/kml/paddle/G.png</href>"
+	Print #File, vbTab & vbTab & vbTab & "</Icon>"
+	Print #File, vbTab & vbTab & vbTab & "<hotSpot x=""32"" y=""1"" xunits=""pixels"" yunits=""pixels""/>"
+	Print #File, vbTab & vbTab & "</IconStyle>"
+	Print #File, vbTab & vbTab & "<LabelStyle>"
+	Print #File, vbTab & vbTab & vbTab & "<scale>0.6</scale>"
+	Print #File, vbTab & vbTab & "</LabelStyle>"
+	Print #File, vbTab & vbTab & "<ListStyle>"
+	Print #File, vbTab & vbTab & vbTab & "<ItemIcon>"
+	Print #File, vbTab & vbTab & vbTab & vbTab & "<href>http://maps.google.com/mapfiles/kml/paddle/G-lv.png</href>"
+	Print #File, vbTab & vbTab & vbTab & "</ItemIcon>"
+	Print #File, vbTab & vbTab & "</ListStyle>"
+	Print #File, vbTab & "</Style>"
+
+	Print #File, vbTab & "<StyleMap id=""msn_C"">"
+	Print #File, vbTab & vbTab & "<Pair>"
+	Print #File, vbTab & vbTab & vbTab & "<key>normal</key>"
+	Print #File, vbTab & vbTab & vbTab & "<styleUrl>#sn_C</styleUrl>"
+	Print #File, vbTab & vbTab & "</Pair>"
+	Print #File, vbTab & vbTab & "<Pair>"
+	Print #File, vbTab & vbTab & vbTab & "<key>highlight</key>"
+	Print #File, vbTab & vbTab & vbTab & "<styleUrl>#sh_C</styleUrl>"
+	Print #File, vbTab & vbTab & "</Pair>"
+	Print #File, vbTab & "</StyleMap>"
+	Print #File, vbTab & "<StyleMap id=""msn_G"">"
+	Print #File, vbTab & vbTab & "<Pair>"
+	Print #File, vbTab & vbTab & vbTab & "<key>normal</key>"
+	Print #File, vbTab & vbTab & vbTab & "<styleUrl>#sn_G</styleUrl>"
+	Print #File, vbTab & vbTab & "</Pair>"
+	Print #File, vbTab & vbTab & "<Pair>"
+	Print #File, vbTab & vbTab & vbTab & "<key>highlight</key>"
+	Print #File, vbTab & vbTab & vbTab & "<styleUrl>#sh_G</styleUrl>"
+	Print #File, vbTab & vbTab & "</Pair>"
+	Print #File, vbTab & "</StyleMap>"
+
+	Print #File, vbTab & "<Folder id=""Layer 0"">"
+	Print #File, vbTab & vbTab & "<name>SCEG Queue</name>"
+	Print #File, vbTab & vbTab & "<open>1</open>"
+
+	Set QueuedProjects = db.OpenRecordset("QueuedProjects", dbOpenDynaset, dbSeeChanges)
+	QueuedProjects.MoveLast
+	QueuedProjects.MoveFirst
+	Dim i As Integer
+	i = 0
+	While Not QueuedProjects.EOF
+		If QueuedProjects.Fields("Include") And Not QueuedProjects.Fields("W/D") And QueuedProjects.Fields("Trans?") And Int(QueuedProjects.Fields("QueueNum")) / QueuedProjects.Fields("QueueNum") = 1 Then
+			Print #File, vbTab & vbTab & "<Placemark>"
+			If forNeighbor = "" Then
+				Print #File, vbTab & vbTab & vbTab & "<name>" & QueuedProjects.Fields("Project") & "</name>"
+			End If
+			If QueuedProjects.Fields("Fuel") = "CC" Then
+				Print #File, vbTab & vbTab & vbTab & "<styleUrl>#msn_C</styleUrl>"
+			ElseIf QueuedProjects.Fields("Fuel") = "GT" Then
+				Print #File, vbTab & vbTab & vbTab & "<styleUrl>#msn_G</styleUrl>"
+			Else
+				If i = 2 Then
+					Print #File, vbTab & vbTab & vbTab & "<styleUrl>#msn_sunny1</styleUrl>"
+				Else
+					Print #File, vbTab & vbTab & vbTab & "<styleUrl>#msn_sunny</styleUrl>"
+				End If
+			End If
+			Print #File, vbTab & vbTab & vbTab & "<ExtendedData>"
+			Print #File, vbTab & vbTab & vbTab & vbTab & "<SchemaData schemaUrl=""#SCEG_Queue_DSS"">"
+			Print #File, vbTab & vbTab & vbTab & vbTab & vbTab & "<SimpleData name=""Latitude"">" & QueuedProjects.Fields("Latitude") & "</SimpleData>"
+			Print #File, vbTab & vbTab & vbTab & vbTab & vbTab & "<SimpleData name=""Longitude"">" & QueuedProjects.Fields("Longitude") & "</SimpleData>"
+			Print #File, vbTab & vbTab & vbTab & vbTab & vbTab & "<SimpleData name=""QueueNum"">" & QueuedProjects.Fields("QueueNum") & "</SimpleData>"
+			Print #File, vbTab & vbTab & vbTab & vbTab & vbTab & "<SimpleData name=""Size"">" & QueuedProjects.Fields("Size") & "</SimpleData>"
+			Print #File, vbTab & vbTab & vbTab & vbTab & vbTab & "<SimpleData name=""POI"">" & QueuedProjects.Fields("POI") & "</SimpleData>"
+			Print #File, vbTab & vbTab & vbTab & vbTab & vbTab & "<SimpleData name=""Fuel"">" & QueuedProjects.Fields("Fuel") & "</SimpleData>"
+			If forNeighbor = "" Then
+				Print #File, vbTab & vbTab & vbTab & vbTab & vbTab & "<SimpleData name=""SignedIA"">" & QueuedProjects.Fields("SignedIA") & "</SimpleData>"
+			End If
+		Print #File, vbTab & vbTab & vbTab & vbTab & "</SchemaData>"
+		Print #File, vbTab & vbTab & vbTab & "</ExtendedData>"
+		Print #File, vbTab & vbTab & vbTab & "<Point>"
+		Print #File, vbTab & vbTab & vbTab & vbTab & "<coordinates>" & QueuedProjects.Fields("Longitude") & "," & QueuedProjects.Fields("Latitude") & ",0</coordinates>"
+		Print #File, vbTab & vbTab & vbTab & "</Point>"
+		Print #File, vbTab & vbTab & "</Placemark>"
+
+		i = i + 1
+		End If
+
+	QueuedProjects.MoveNext
+	Wend
+QueuedProjects.Close
+
+Print #File, vbTab & "</Folder>"
+Print #File, "</Document>"
+Print #File, "</kml>"
+
+Close #File
+End Function
+
+Private Function PrintPWDTransformers(Bus1 As Long, Bus2 As Long, Ckt As String, TransR As Single, TransX As Single, RateA As Single, _
+    RateB As Single, RateC As Single, controlledBus As Long, controlledBus As Long, inService As Boolean, _
+    mvaBase As Long, vmax As Single, vmin As Single, ConCode As String, XFEXFixedTap As Single, XFFixedTap1 As Single, XFNominalKV1 As Variant)
+
+Dim LineXFType As String
+Dim XFAuto As String
+Dim XFConfiguration As String
+Dim Line As String
+'Print #File, "Branch (BusNum,BusNum:1,LineCircuit, LineR,LineX, LineC, LineAMVA,LineAMVA:1,LineAMVA:2,LineXFType,XFAuto,XFRegBus,LineXFmr,LineStatus,BranchDeviceType,XFMVABase,XFTapMax,XFTapMin,XFConfiguration)"
+Line = ""
+
+Line = Bus1 & "," & Bus2 & "," & Chr(34) & Ckt & Chr(34) & ","
+
+Line = Line & TransR & "," & TransX & "," 'impedances
+
+Line = Line & RateA & "," & RateB & "," & RateC & ","
+
+If controlledBus = 1 Then
+    LineXFType = "LTC"
+    XFAuto = "YES"
+Else
+    LineXFType = "Fixed"
+    XFAuto = "NO"
+End If
+
+Line = Line & LineXFType & "," & XFAuto & ","
+
+If controlledBus = 0 Then
+    Line = Line & "0" & ","
+Else
+    If controlledBus < 4000 Then
+        Line = Line & (370000 + controlledBus) & ","  'Only used for xfmr with LTC's
+    Else
+        Line = Line & controlledBus & ","  'Only used for xfmr with LTC's
+    End If
+End If
+
+Line = Line & Chr(34) & "YES" & Chr(34) & ","
+
+If inService Then 'Branch Status
+    Line = Line & """Closed""" & ","
+Else
+    Line = Line & """Open""" & ","
+End If
+
+Line = Line & """Transformer""" & ","  'Branch Type
+
+Line = Line & mvaBase & "," & vMax & "," & vMin & ","
+
+If ConCode = "1" Then
+    XFConfiguration = "Gwye - Gwye"
+ElseIf ConCode = "2" Then
+    XFConfiguration = "Gwye - Delta"
+ElseIf ConCode = "3" Then
+    XFConfiguration = "Delta - Gwye"
+ElseIf ConCode = "4" Then
+    XFConfiguration = "Delta - Delta"
+Else
+    XFConfiguration = "Unknown"
+End If
+
+Line = Line & Chr(34) & XFConfiguration & Chr(34) & "," & XFFixedTap & "," & XFFixedTap1 & "," & XFNominalKV1 & ",0.9" & "," & "1.1"
+
+PrintPWDTransformers = Line
+End Function
+
+Private Function PrintPWDBranches(Bus1 As Long, Bus2 As Long, Ckt As String, LineR As Single, LineX As Single, LineB As Single, RateA As Single, RateB As Single, RateC As Single, Length As Single, ObjectMemo As String, Status As Boolean) As String
+    Dim Line As String
+    Line = ""
+
+    Line = Bus1 & "," & Bus2 & "," & Chr(34) & Ckt & Chr(34) & ","
+    Line = Line & LineR & "," & LineX & "," & LineB & ","   'impedances
+    Line = Line & RateA & "," & RateB & "," & RateC & ","   'ratings
+    Line = Line & Length & "," & Chr(34) & ObjectMemo & Chr(34) & ","   'length and circuit name
+
+    If Status Then
+        Line = Line & """Closed"","
+    Else
+        Line = Line & """Open"","
+    End If
+
+    Line = Line & """Line"""   'Branch Type
+    Line = Line & "," & RelayLoadMVA & "," & MetSatMVA 'Added 5/20/20 AU
+
+    PrintPWDBranches = Line
+End Function
+
+Private Function PrintPWD3WTransformers(Bus1 As Long, Bus2 As Long, Bus3 As Long, Bus4 As Long, Ckt As String, TransR_lto2 As Single, TransX_lto2 As Single, _
+                                        TransR_2to3 As Single, TransX_2to3 As Single, TransR_3to1 As Single, TransX_3to1 As Single, _
+                                        RateA As Single, RateB As Single, RateC As Single, control As Long, controlledBus As Long, inService As Boolean, _
+                                        mvaBase102 As Long, mvaBase201 As Long, mvaBase301 As Long, vMax As Single, vMin As Single, _
+                                        ConCode As String, XFFixedTap2 As Single, XFFixedTap1 As Single, XFNominalKV2 As Single, Bus1_base_kV As Single, _
+                                        XFNominalKV1 As Single, TertiaryWindingNomVolt As Single)
+
+    Dim LineXFType As String
+    Dim XFAuto As String
+    Dim XFConfiguration As String
+    Dim Line As String
+
+    'Print #File, "3WXFormer, (BusIdentifier,BusIdentifier:1,BusIdentifier:2,BusIdentifier:3,LineCircuit,R3W:3,R3W:4,R3W:5,X3W:3,X3W:4,X3W:5, _
+    'Tap3W:1,NomVolt3W:1,Tap3W:2,NomVolt3W:2,Tap3W:3,NomVolt3W:3,LineMVAPri:1,LineMVAPri:2,LineMVAPri:3,LineMVAPri:1,LineMVAPri:2,BusName3W:3)" & vbCrLf & "{"
+    Line = ""
+
+    Line = Bus1 & "," & Bus2 & "," & Bus3 & "," & Bus4 & "," & Chr(34) & Ckt & Chr(34) & ","
+    Line = Line & TransR_lto2 & "," & TransR_2to3 & "," & TransR_3to1 & "," & TransX_lto2 & "," & TransX_2to3 & "," & TransX_3to1 & "," 'impedances
+    Line = Line & XFFixedTap2 & "," & Bus2_base_kV & "," & XFFixedTap1 & "," & Bus2_base_kV & "," & "1" & "," & TertiaryWindingNomVolt & ","
+    Line = Line & RateA & "," & RateB & "," & RateC & "," & Chr(34) & "STAR BUS" & Chr(34) & "," & TertiaryWindingNomVolt & "," 'TEST
+
+    PrintPWD3WTransformers = Line
 End Function
