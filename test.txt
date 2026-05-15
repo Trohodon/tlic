@@ -2230,14 +2230,14 @@ Private Function GetBranchBreakerString(breakerNum As String, sub_id As Integer,
         Line_Name = ""
     End If
 
-    GetBranchBreakerString = breakerNum & "," & sub_id & "," & Bus1 & "," & Bus2 & "," & Ckt & "," & fromName & "," & fromBase_kV & "," & toName & "," & toBase_kV & "," & "" & Line_Name
+    GetBranchBreakerString = breakerNum & "," & sub_id & "," & Bus1 & "," & Bus2 & "," & Ckt & ",'" & fromName & "  " & fromBase_kV & " " & toName & " " & toBase_kV & "'," & "'" & Line_Name & "'"
 End Function
 
-Private Function PrintFixedShunts(snapshotDate As Date, maxBus As Long, combineBuses As Boolean, writePython As Boolean, commChar As String, busOffset As Long, useRegionalNumbering As Boolean) As String
+Private Function PrintFixedShunts(snapshotDate As Date, maxBus As Long, combineBuses As Boolean, writePython As Boolean, commChar As String, busOffset As Long, useRegionalNumbering As Boolean) 
     Dim FixedShunts As DAO.Recordset
     Dim Line As String, Bus1 As Long
 
-    Line = Line & vbCrLf & "Shunt (BusNum,ShuntID,SSStatus,SSCMode,SSVhigh,SSVlow,SSMVR,SSBlockNumSteps,SSBlockMvarPerStep,DesiredVoltage)" & vbCrLf & "{"
+    Line = Line & vbCrLf & "Shunt (BusNum,ShuntID,SSStatus,SSCMode,SSVHigh,SSVLow,SSNMVR,SSBlockNumSteps,SSBlockMVarPerStep,DesiredVoltage)" & vbCrLf & "{"
 
     Set FixedShunts = db.OpenRecordset("FixedShuntsWithBusses", dbOpenDynaset, dbSeeChanges)
 
@@ -2248,15 +2248,13 @@ Private Function PrintFixedShunts(snapshotDate As Date, maxBus As Long, combineB
             Bus1 = FixedShunts.Fields("bus_number")
 
             If Bus1 < maxBus Then
-                If combineBuses And FixedShunts.Fields("parent_bus_number") <> 0 Then
+                If combineBuses And FixedShunts.Fields("parent_bus_number") <> 0 Then _
                     Bus1 = FixedShunts.Fields("parent_bus_number")
-                End If
 
-                If useRegionalNumbering Then
+                If useRegionalNumbering Then _
                     Bus1 = Bus1 + busOffset
-                End If
 
-                Line = Line & vbCrLf & Bus1 & ",""" & Trim(FixedShunts.Fields("shunt_id")) & """" 
+                Line = Line & vbCrLf & Bus1 & " """ & Trim(FixedShunts.Fields("shunt_id")) & """ " 
 
                 If FixedShunts.Fields("in_service") Then ' ST
 
@@ -2268,7 +2266,7 @@ Private Function PrintFixedShunts(snapshotDate As Date, maxBus As Long, combineB
 
                 End If
 
-                Line = Line & """Bus Shunt"" 1.5 0.51 " & Format(FixedShunts.Fields("b1_MW"), "0.00") & " 1 " & Format(FixedShunts.Fields("b1_MW"), "0.00") & " 1.005"
+                Line = Line & """Bus Shunt"" 1.5 0.51 " & Format(FixedShunts.Fields("bl_MW"), "0.00") & " 1 " & Format(FixedShunts.Fields("bl_MW"), "0.00") & " 1.005"
             End If
         End If
 
@@ -2279,15 +2277,16 @@ Private Function PrintFixedShunts(snapshotDate As Date, maxBus As Long, combineB
     PrintFixedShunts = Line
 End Function
 
-Private Function PrintSwitchedShunts(snapshotDate As Date, maxBus As Long, combineBuses As Boolean, writePython As Boolean, commChar As String, busOffset As Long, useRegionalNumbering As Boolean, projectsSubset As Boolean, projectsStartDate As Date, projectsEndDate As Date)
+Private Function PrintSwitchedShunts(snapshotDate As Date, maxBus As Long, combineBuses As Boolean, writePython As Boolean, commChar As String, busOffset As Long, useRegionalNumbering As Boolean, _ 
+    projectsSubset As Boolean, projectsStartDate As Date, projectsEndDate As Date)
     Dim SwitchedShunts As DAO.Recordset
-    Dim Line As String, Bus1 As Long
+    Dim Line As String, i As Long, Bus1 As Long
 
     Line = ""
 
-    'Template: psspy.switched_shunt_data_3(i, [si...s8,mode,remote,stat,adjm], [b1...b8, vhi, vlo, binit, impct], '')
+    'Template: psspy.switched_shunt_data_3(i, [s1...s8,mode,remote,stat,adjm], [b1...b8, vhi, vlo, binit, rmpct], '')
     
-    Line = Line & "Shunt (BusNum,ShuntID,SSStatus,SSCMode,SSVHigh,SSVlow,SSNMVR,SSBlockNumSteps,SSBlockMVarPerStep,DesiredVoltage)" & vbCrLf & "{" & vbCrLf
+    Line = Line & "Shunt (BusNum,ShuntID,SSStatus,SSCMode,SSVHigh,SSVLow,SSNMVR,SSBlockNumSteps,SSBlockMVarPerStep,DesiredVoltage)" & vbCrLf & "{" & vbCrLf
 
     Set SwitchedShunts = db.OpenRecordset("SwitchedShuntsWithBusses", dbOpenDynaset, dbSeeChanges)
 
@@ -2312,9 +2311,8 @@ Private Function PrintSwitchedShunts(snapshotDate As Date, maxBus As Long, combi
 
                     Bus1 = SwitchedShunts.Fields("bus_number")
 
-                    If combineBuses And SwitchedShunts.Fields("parent_bus_number") <> 0 Then
+                    If combineBuses And SwitchedShunts.Fields("parent_bus_number") <> 0 Then _
                         Bus1 = SwitchedShunts.Fields("parent_bus_number")
-                    End If
 
                     If useRegionalNumbering Then _
                         Bus1 = Bus1 + busOffset
@@ -2350,17 +2348,15 @@ Private Function PrintSwitchedShunts(snapshotDate As Date, maxBus As Long, combi
 
                 Bus1 = SwitchedShunts.Fields("bus_number")
 
-                If combineBuses And SwitchedShunts.Fields("parent_bus_number") <> 0 Then
+                If combineBuses And SwitchedShunts.Fields("parent_bus_number") <> 0 Then _
                     Bus1 = SwitchedShunts.Fields("parent_bus_number")
-                End If
 
                 If useRegionalNumbering Then _
                     Bus1 = Bus1 + busOffset
 
-                Line = Line & Bus1 & " " & """Closed"" ""Discrete"" " _
-                Line = Line & " & Format(SwitchedShunts.Fields("vhi_pu"), "0.0000") & " " & Format(SwitchedShunts.Fields("vlo_pu"), "0.0000") _
-                & " 1 " & Format(SwitchedShunts.Fields("b_init_MVAR"), "0.00") & " 4 " & SwitchedShunts.Fields("blk1_steps") & " " & Format(SwitchedShunts.Fields("blk1_step_MVAR"), _
-                "1.005" & vbCrLf ' May need to put Target/Desired volt at the end of this (before vbCrLf)
+                Line = Line & Bus1 & " ""1"" ""Closed"" ""Discrete"" "  & Format(SwitchedShunts.Fields("vhi_pu"), "0.00000") & " " & Format(SwitchedShunts.Fields("vlo_pu"), "0.00000")
+                Line = Line & " " & Format("b_init_MVAR"), "0.00") & " " & SwitchedShunts.Fields("blk1_steps") & " " & Format(SwitchedShunts.Fields("blk1_bstep_MVAR"), "0.00") & _
+                " 1.005" & vbCrLf ' May need to put Target/Desired volt at the end of this (before vbCrLf)
 
             End If
         End If
