@@ -28,7 +28,7 @@ Public GenDownSize As Integer
 Public GenDownArr() As Long
 Public GenDownTRMArr() As Boolean
 Public projectsBusesArr() As String, projectsBusesArrFinDate() As String, projectsBranchesArr() As String, projectsBranchesArrFinDate() As String
-Public ValueArr() As String, ValueArrFinDate() As String
+Public projectMachinesArr() As String, ProjectMachinesArrFinDate() As String
 Public projectsSwitchedShuntsArr() As String, projectsSwitchedShuntsArrFinDate() As String, projectsTwoWindingsArr() As String, projectsTwoWindingsArrFinDate() As String
 Public i As Integer
 Public Bus1 As Long
@@ -61,7 +61,7 @@ incGenData As Boolean, writePython As Boolean, snapDate As Date, snapSeason As S
 projectsEndDate As Date, PSSEVer33Higher As Boolean) As Boolean
 
 WriteOutFullModel = False
-If useRegionalNumbering Then_
+If useRegionalNumbering Then _
 SlackBus = SlackBus + busOffset
 maxBus = 3000
 
@@ -114,7 +114,7 @@ Next i
 
 'Get GenDownList Recordset and cache into array:
 Set GenDownList = db.OpenRecordset("GenToShutDown", dbOpenDynaset, dbSeeChanges)
-GenDownList = DCount("Gen", "GenToShutDown")
+GenDownSize = DCount("Gen", "GenToShutDown")
 On Error Resume Next
 
 ReDim GenDownArr(1 To GenDownSize) As Long
@@ -128,100 +128,33 @@ GenDownTRMArr(i) = GenDownList.Fields("ReplGDwTRM").Value
 GenDownList.MoveNext
 Next i
 
-Dim projectsBuses As DAO.Recordset, projectsBranches As DAO.Recordset, Value As DAO.Recordset, projectsSwitchedShunts As DAO.Recordset
+Dim projectsBuses As DAO.Recordset, projectsBranches As DAO.Recordset, projectMachines As DAO.Recordset, projectsSwitchedShunts As DAO.Recordset
 Dim projectsTwoWindings As DAO.Recordset
-Set projectsBuses = db.OpenRecordset ("ProjectsBuses", dbOpenDynaset, dbSeeChanges)
-Set projectsBranches = db.OpenRecordset ("ProjectsBranches", dbOpenDynaset, dbSeeChanges)
-Set Value = db.OpenRecordset ("Value*, dbOpenDynaset, dbSeeChanges)
-Set projectsSwitchedShunts = db. OpenRecordset ("ProjectsSwitchedShunts*, dbOpenDynaset, dbSeeChanges)
-Sec PprojectsTwoWindings = db. OpenRecordset ("ProjectsTwoWindings", dbOpenDynaset, dbSeeChanges)
-ReDim projectsBranchesArr (0)
-ReDim ValueArr (0)
-ReDim projectsSwitchedShuntsArr (0)
-ReDim projectsTwoWindingsArr (0) I
-ReDim projectsBusesArrFinDate (0)
-ReDim ProjectsBranchesArrFinDate (0)
-ReDim ValueArrFinDate (0)
-ReDim projectsSwitchedShuntsArrFinDate (0)
-ReDim projectsTwoWindingsArrFinDate (0)
+Set projectsBuses = db.OpenRecordset("ProjectsBuses", dbOpenDynaset, dbSeeChanges)
+Set projectsBranches = db.OpenRecordset("ProjectsBranches", dbOpenDynaset, dbSeeChanges)
+Set projectMachines = db.OpenRecordset("ProjectMachines", dbOpenDynaset, dbSeeChanges)
+Set projectsSwitchedShunts = db.OpenRecordset("ProjectsSwitchedShunts", dbOpenDynaset, dbSeeChanges)
+Set projectsTwoWindings = db.OpenRecordset("ProjectsTwoWindings", dbOpenDynaset, dbSeeChanges)
+
+Redim projectsBusesArr(0)
+ReDim projectsBranchesArr(0)
+ReDim projectMachinesArr(0)
+ReDim projectsSwitchedShuntsArr(0)
+ReDim projectsTwoWindingsArr(0)
+ReDim projectsBusesArrFinDate(0)
+ReDim projectsBranchesArrFinDate(0)
+ReDim projectMachinesArrFinDate(0)
+ReDim projectsSwitchedShuntsArrFinDate(0)
+ReDim projectsTwoWindingsArrFinDate(0)
 
 If projectsSubset Then
 Call ProjectArrayCreate (projectsStartDate, projectsEndDate, projectsBuses)
-Call ProjectArrayCreate (projectsStartDate, projectsEndDate, projectsBranches) , :
-Call ProjectarrayCreate (projectsStartDate, projectsEndDate, Value)
+Call ProjectArrayCreate (projectsStartDate, projectsEndDate, projectsBranches)
+Call ProjectarrayCreate (projectsStartDate, projectsEndDate, projectMachines)
 Call ProjectArrayCreate (projectsStartDate, projectsEndDate, projectsSwitchedShunts)
 Call ProjectArrayCreate (projectsStartDate, projectsEndDate, projectsTwoWindings)
 Else
-Set Snapshots =# db.OpenRecordset ("Snapshots", dbOpenDynaset, dbSeeChanges)
-Snapshots.MoveLast
-Snapshots.MoveFirst
-{ GenDownList.MoveFirst
-For i = 1 To GenDownSize
-GenDownList.MoveNext
-Next i ; ;
-Dim projectsBuses As DAO.Recordset, projectsBranches As DAO.Recordset,. Value As DAO.Recordset, ProjectsSwitchedShunrs As DAO.Recordset
-Dim ProjectsTwoWindings As DAO.Recordset
-Set projectsBuses = db.OpenRecordset ("ProjectsBuses", dbOpenDynaset, dbSeeChanges)
-Set projectsBranches = db.OpenRecordset ("ProjectsBranches", dbOpenDynaset, dbSeeChanges)
-Set Value = db.OpenRecordset ("Value", dbOpenDynaset, dbSeeChanges)
-Set projectsSwitchedShunts = db .OpenRecordset ("ProjectsSwitchedShunts", dbOpenDynaset, dbSeeChanges)
-Sec projectsTwoWindings = db. OpenRecordset ("ProjectsTwoWindings", dbOpenDynaset, dbSeeChanges)
-ReDim ProjectsBusesArr (0)
-ReDim projectsBranchesArr (0)
-ReDim ValueArr (0) . :
-ReDim projectsSwitchedShuntsarr (0) :
-ReDim projectsTwoWindingsArr (0)
-ReDim projectsBusesArrFinDate (0) I
-ReDim projectsBranchesArrFinDate (0) ;
-ReDim projectsHachinesArrFinDate (0) . :
-ReDim projectsSwitchedShuntsArrFinDate (0)
-ReDim projectsTwoWindingsArrFinDate (0)
-If projectsSubset Then
-Call ProjectarrayCreate (projectsStartDate, PprojectsEndDate, projectsBuses)
-Call ProjectArrayCreate (projectsStartDate, projectsEndDate, projectsBranches)
-Call ProjectArrayCreate (projectsStartDate, projectsEndDate, projectsSwitchedShunts) ;
-Call ProjectArrayCreate (projectsStartDate, projectsEndDate, projectsTwoWindings)
-Else
 Set Snapshots = db.OpenRecordset ("Snapshots", dbOpenDynaset, dbSeeChanges)
-Snapshots.MoveLast
-Snapshots.MoveFirst :
-While Not Snapshors.FoOr
-Set projectacchonee wp, chechecordsnt(*fr05 ebcabrtacheur:n0vOpenDynanee;cablectbanrcs)
-Set projectsHzechnes = db.OpenRecordset ("ProjectsHechznes", dabOpenDynaset, dbSeeChanges)
-Set Presnenate eid ae a gp Qpebhecuedoes (*0r0jeesezvosindingats-dtOrendyoneet edesecimeeg ee
-ReDim ProjectsBraachesartr (0) :
-ReDim projectsBrchznesArr (0)
-ReDim projectsSuctshedStestrarr (0) . . 7
-ReDim projectsiw:tcndssaghreyety (0)
-ReDim projectsiuogshsrEsahers yp)
-ReDim projectsBrancherirrfarcbate (0)
-ReDim projectsHzch:hesArrFinDate (0)
-ReDim projectsSuztchedirrktahere inPate (0)
-ReDim projectatwitendssguarekrrlanbAch (6)
-if projectsSubset Then
-Call ProjectArrayCreate (projectsStartDate, projectsEndDate, projects3uses)
-Call ProjectArrayCreate (projectsStartDate, ProjectsEndDate, projectsBranshes)
-Call ProjectArrayCreate (projectsStartDate, projectsEndDate, Projecteuzen=hesT
-Call ProjectArrayCreacte (projectsStartDate, projectsEndDate, projectsiwtcndssaouncs)
-Set} Snops=bege scat. OpenRecordset ("Snapshots", dbOpenDynaset, dbSeeChanges)
-if Sdapphoce-Freldsismodettacders4"Soapshocindex Then
-If projectsSubset Then
-Call ProjectarrayCreate (projectsStartDate, ProjectsEndDate, ProjectsBuses)
-Call ProjecthrrayCreate (projectsStartDate, projectsEndDate, projectsBranches)
-Call ProjectArrayCreate (projectsStartDate, projectsEndDate, PprojectsHzchines)
-Call ProjectArrayCreate (projectsStartDate, projectsEndDate, ProjectsSairchedShunts)
-Call ProjectArrayCreate (projectsStartDate, projectsEndDate, projectsiw:vindssaui.c3}
-SecctSnapohoces *.dbiOpenRecordset ("Snapshots", dbOpenDynaset, dbSeeChanges)
-SotpSnopstbevebadh..CpenRecordset ("Snapshots", dbOpenDynaset, dbSeeChanges)
-if SSoppabccukzelasitnpabsteakeetsis4"Sndeshorins+x Then
-If Nor Texull (Snapahots, Fields ("CR_anterchange_[6i")) Thea
-If Nov. OR InterchkengeThan:
-Call ProjectArrayCreate (projectsStartDate, ProjectsEndDate, PprojectsBranches)
-Call ProjectArrayCreate (projectsStartDate, projectsEndDate, Value)
-Call ProjectArrayCreate (projectsStartDate, ProjectsEndDate, projectsSwitchedShunts)
-Call ProjectArrayCreate (projectsStartDate, PprojectsEndDate, ProjectsTwoWindings)
-Else ;
-Set Snapshots = db.OpenRecordset ("Snapshots", dbOpenDynaset, dbSeeChanges) :
 Snapshots.MoveLast
 Snapshots.MoveFirst
 While Not Snapshots.EOF :
@@ -375,14 +308,16 @@ ElseIf Left (Schedules. Fields ("Sch"), 4) = "VCS2" Then
 Elself Left (Schedules. Fields("Sch"), 4) = "VCS3" Then
 End If
 Else
-: ElseIf Left (Schedules.Fields("Sch"), 4) = "VCS2" Then - 7
+ElseIf Left (Schedules.Fields("Sch"), 4) = "VCS2" Then - 7
 ElseIf Left (Schedules. Fields ("Sch"), 4) = "VCS3" Then
-End If ; I
-End If . :
+End If
+End If
+End If
 Schedules.MoveNext
 Wend
+Schedules.Close
 End If
-End If '*If...Else projectsSubset Then
+End If '^If...Else projectsSubset Then
 Dim BaseSeason As String
 If SnapShotSeason = "yw" Or Left (SnapShotSeason, 1) = "D" Or SnapShotSeason = "H" or SnapShotSeason = L* Tnen
 Else
@@ -9068,7 +9003,7 @@ Print #File, vbTab vbTab "<open>l</open>" . :
 Sec QueuedProjects = db.OpenRecordset ("QueuedProjects", abOpenDynaset, dbSeeChanges)
 QueuedProjects .MoveLast
 QueuedProjects.MoveFirst
-While Not QueuedProjecrs. EOF
+While Not QueuedProjects. EOF
 Print #File, vbTab 5 vbTab & "<Placemark>*"
 If forNeighbor = # Then
 Print #File, vbTab vbTab & vbTab & "<name>" CueuedProjects. Fields ("Project") & "</name>"
@@ -9617,9 +9552,9 @@ Print $#File, vbTab & vbTab & vbTab & vbTab & vbTab & "<SimpleData name=""POI"">
 Print #File, vbTab & vbTab & vbTab & vbTab & vbTab & "<SimpleData name=""Fuel"">" QueuedProjects.Fields("Fuel") "</SimpleData>*
 Print #File, vbTab & vbTab & vbTab & vbTab & vbTab & "<SimpleData naz[a""SignedIAr*>" & QueuedProjects. Fields("SignedIA") & "</SizpleData>"
 If forNeighbor = "" Then
-Print #File, vbTab & vbTab & vbTab & vbTab & vbTab & "<SirpleData name=""SignedIA">" & QueuedProjects.Fields(*SignedIA") & "</SirpleData>
+Print #File, vbTab & vbTab & vbTab & vbTab & vbTab & "<SirpleData name=""SignedIA">" & QueuedProjects.Fields(*SignedIA") & "</SirpleData>"
 End If
-Print #File, vbTab & vbTab & vbTab & vbTab & "</SchemaData>*
+Print #File, vbTab & vbTab & vbTab & vbTab & "</SchemaData>"
 Print #File, vbTab & vbTab & vbTab & "</ExtendedData>"
 Print #File, vbTab & vbTab & vbTab & "<Point>"
 Print #File, vbTab & vbTab & vbTab & vbTab & "<coordinates>" & QueuedProjects.Fields("Longitude") & "," & QueuedProjects.Fields("Latitude") & ",0</coordinates>"
@@ -9628,8 +9563,9 @@ Print #File, vbTab & vbTab & "</Placemark>"
 End If
 QueuedProjects.MoveNext
 Wend
+QueuedProjects.Close
 Print #File, vbTab & "</Folder>"
-Print #File, </Document>"
-Print #File, "</kmi>"
+Print #File, "</Document>"
+Print #File, "</kml>"
 Close #File
 End Function
