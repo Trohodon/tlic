@@ -128,11 +128,11 @@ GenDownTRMArr(i) = GenDownList.Fields("ReplGDwTRM").Value
 GenDownList.MoveNext
 Next i
 
-Dim projectsBuses As DAO.Recordset, projectsBranches As DAO.Recordset, projectMachines As DAO.Recordset, projectsSwitchedShunts As DAO.Recordset
+Dim projectsBuses As DAO.Recordset, projectsBranches As DAO.Recordset, projectsMachines As DAO.Recordset, projectsSwitchedShunts As DAO.Recordset
 Dim projectsTwoWindings As DAO.Recordset
 Set projectsBuses = db.OpenRecordset("ProjectsBuses", dbOpenDynaset, dbSeeChanges)
 Set projectsBranches = db.OpenRecordset("ProjectsBranches", dbOpenDynaset, dbSeeChanges)
-Set projectMachines = db.OpenRecordset("ProjectMachines", dbOpenDynaset, dbSeeChanges)
+Set projectsMachines = db.OpenRecordset("projectsMachines", dbOpenDynaset, dbSeeChanges)
 Set projectsSwitchedShunts = db.OpenRecordset("ProjectsSwitchedShunts", dbOpenDynaset, dbSeeChanges)
 Set projectsTwoWindings = db.OpenRecordset("ProjectsTwoWindings", dbOpenDynaset, dbSeeChanges)
 
@@ -150,7 +150,7 @@ ReDim projectsTwoWindingsArrFinDate(0)
 If projectsSubset Then
 Call ProjectArrayCreate (projectsStartDate, projectsEndDate, projectsBuses)
 Call ProjectArrayCreate (projectsStartDate, projectsEndDate, projectsBranches)
-Call ProjectarrayCreate (projectsStartDate, projectsEndDate, projectMachines)
+Call ProjectarrayCreate (projectsStartDate, projectsEndDate, projectsMachines)
 Call ProjectArrayCreate (projectsStartDate, projectsEndDate, projectsSwitchedShunts)
 Call ProjectArrayCreate (projectsStartDate, projectsEndDate, projectsTwoWindings)
 Else
