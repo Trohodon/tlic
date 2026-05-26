@@ -28,7 +28,7 @@ Public GenDownSize As Integer
 Public GenDownArr() As Long
 Public GenDownTRMArr() As Boolean
 Public projectsBusesArr() As String, projectsBusesArrFinDate() As String, projectsBranchesArr() As String, projectsBranchesArrFinDate() As String
-Public projectMachinesArr() As String, ProjectMachinesArrFinDate() As String
+Public projectsMachinesArr() As String, projectsMachinesArrFinDate() As String
 Public projectsSwitchedShuntsArr() As String, projectsSwitchedShuntsArrFinDate() As String, projectsTwoWindingsArr() As String, projectsTwoWindingsArrFinDate() As String
 Public i As Integer
 Public Bus1 As Long
@@ -138,12 +138,12 @@ Set projectsTwoWindings = db.OpenRecordset("ProjectsTwoWindings", dbOpenDynaset,
 
 Redim projectsBusesArr(0)
 ReDim projectsBranchesArr(0)
-ReDim projectMachinesArr(0)
+ReDim projectsMachinesArr(0)
 ReDim projectsSwitchedShuntsArr(0)
 ReDim projectsTwoWindingsArr(0)
 ReDim projectsBusesArrFinDate(0)
 ReDim projectsBranchesArrFinDate(0)
-ReDim projectMachinesArrFinDate(0)
+ReDim projectsMachinesArrFinDate(0)
 ReDim projectsSwitchedShuntsArrFinDate(0)
 ReDim projectsTwoWindingsArrFinDate(0)
 
